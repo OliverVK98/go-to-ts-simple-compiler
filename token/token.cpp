@@ -5,7 +5,7 @@
 #include "token.h"
 
 std::unordered_map<std::string, TokenType> keywords = {
-        {"fn",     FUNCTION},
+        {"func",     FUNCTION},
         {"const",    CONST},
         {"true",   TRUE},
         {"false",  FALSE},

@@ -58,7 +58,7 @@ struct Token {
     TokenType Type;
     std::string Literal;
     friend std::ostream& operator<<(std::ostream& os, const Token& token);
-    friend bool operator==(Token &lhs, Token &rhs) { lhs.Type == rhs.Type; }
+    friend bool operator==(Token &lhs, Token &rhs) { return lhs.Type == rhs.Type; }
 };
 
 extern std::unordered_map<std::string, TokenType> keywords;

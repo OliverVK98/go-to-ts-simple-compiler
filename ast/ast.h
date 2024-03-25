@@ -5,6 +5,7 @@
 #ifndef GO_TO_TS_SIMPLE_COMPILER_AST_H
 #define GO_TO_TS_SIMPLE_COMPILER_AST_H
 
+#include <utility>
 #include <vector>
 #include <sstream>
 #include <memory>
@@ -13,98 +14,135 @@
 
 struct Node {
     virtual ~Node() = default;
-    virtual std::string tokenLiteral() = 0;
     virtual std::string string() = 0;
 };
 
 struct Statement : public Node {
+    Statement() = default;
     ~Statement() override = default;
 };
 
-struct Expression : public Node {
-    ~Expression() override = default;
-};
+//struct Expression : public Node {
+//    ~Expression() override = default;
+//};
 
 struct Program : public Node {
-    std::vector<Statement*> Statements;
+    std::vector<std::unique_ptr<Statement>> statements;
+    Program() = default;
     ~Program() override = default;
+    Program(const Program&) = delete;
+    Program& operator=(const Program&) = delete;
+    Program(Program&&) noexcept = default;
+    Program& operator=(Program&&) noexcept = default;
 
-    std::string tokenLiteral() override;
     std::string string() override;
 };
 
 struct Identifier : public Node {
     Token token;
     std::string value;
+    Identifier(Token token, std::string value) : token(std::move(token)), value(std::move(value)) {}
 
-    inline std::string tokenLiteral() override { return token.Literal; }
     inline std::string string() override { return token.Literal; }
-};
-
-struct ConstStatement : public Statement {
-    Token token;
-    Identifier* name;
-    std::unique_ptr<Expression> value;
-
-    ConstStatement(Token &token) : token(token) {};
-
-    inline std::string tokenLiteral() override { return token.Literal; }
-    std::string string() override;
-};
-
-struct ReturnStatement : public Statement {
-    Token token;
-    std::unique_ptr<Expression> value;
-
-    ReturnStatement(Token &token) : token(token) {};
-
-    inline std::string tokenLiteral() override { return token.Literal; }
-    std::string string() override;
-};
-
-struct ExpressionStatement : public Statement {
-    Token token;
-    std::unique_ptr<Expression> value;
-
-    ExpressionStatement(Token &token) : token(token) {};
-
-    inline std::string tokenLiteral() override { return token.Literal; }
-    std::string string() override;
 };
 
 struct IntegerLiteral : public Node {
     Token token;
     int value;
+    IntegerLiteral(Token token) : token(std::move(token)) {};
 
-    inline std::string tokenLiteral() override { return token.Literal; }
     inline std::string string() override { return token.Literal; }
 };
 
-struct PrefixExpression : public Node {
+struct StringLiteral : public Node {
     Token token;
-    std::string Operator;
-    Expression* right;
+    std::string value;
+    StringLiteral(Token token, std::string value) : token(std::move(token)), value(std::move(value)) {};
 
-    inline std::string tokenLiteral() override { return token.Literal; }
-    inline std::string string() override;
-};
-
-struct InfixExpression : public Node {
-    Token token;
-    std::string Operator;
-    Expression* right;
-    Expression* left;
-
-    inline std::string tokenLiteral() override { return token.Literal; }
-    inline std::string string() override;
+    inline std::string string() override { return token.Literal; }
 };
 
 struct Boolean : public Node {
     Token token;
     bool value;
+    Boolean(Token token, bool value) : token(std::move(token)), value(value) {};
 
-    inline std::string tokenLiteral() override { return token.Literal; }
     inline std::string string() override { return token.Literal; }
+};
+
+struct ConstStatement : public Statement {
+    Token token;
+    std::unique_ptr<Identifier> name;
+    std::unique_ptr<Node> value;
+
+    ConstStatement(Token &token) : token(token) {};
+
+    std::string string() override;
+};
+
+struct ReturnStatement : public Statement {
+    Token token;
+    std::unique_ptr<Node> value;
+
+    ReturnStatement(Token &token) : token(token) {};
+
+    std::string string() override;
+};
+
+struct ExpressionStatement : public Statement {
+    Token token;
+    std::unique_ptr<Node> value;
+
+    ExpressionStatement(Token &token) : token(token) {};
+
+    std::string string() override;
+};
+
+struct BlockStatement : public Node {
+    Token token;
+    std::vector<std::unique_ptr<Statement>> statements;
+
+    std::string string() override;
+};
+
+struct IfExpressionStatement : public Statement {
+    Token token;
+    Node* condition;
+    BlockStatement* consequence;
+    BlockStatement* alternative;
+
+    std::string string() override;
+};
+
+struct PrefixExpression : public Node {
+    Token token;
+    std::string Operator;
+    std::unique_ptr<Node> right;
+
+    PrefixExpression(Token token, std::string Operator) : token(std::move(token)), Operator(std::move(Operator)) {};
+
+    std::string string() override;
+};
+
+struct InfixExpression : public Node {
+    Token token;
+    std::string Operator;
+    std::unique_ptr<Node> right;
+    std::unique_ptr<Node> left;
+
+    InfixExpression(Token token, std::string Operator, std::unique_ptr<Node> left) :
+        token(std::move(token)), Operator(std::move(Operator)), left(std::move(left)) {};
+
+    std::string string() override;
+};
+
+struct Function : public Node {
+    Token token;
+    std::vector<Identifier> parameters;
+    BlockStatement* body;
+    std::string funcName;
+
+    std::string string() override;
 };
 
 #endif //GO_TO_TS_SIMPLE_COMPILER_AST_H

@@ -4,6 +4,8 @@
 
 #include "parser.h"
 
+#include <utility>
+
 std::unordered_map<TokenType, int> precedences = {
         {EQ,       EQUALS},
         {NOT_EQ,   EQUALS},
@@ -32,6 +34,8 @@ std::unique_ptr<ConstStatement> Parser::parseConstStatement() {
         return nullptr;
     }
 
+    stmt->name = std::make_unique<Identifier>(currentToken, currentToken.Literal);
+
     if (!nextTokenIs(ASSIGN)) {
         return nullptr;
     }
@@ -41,6 +45,9 @@ std::unique_ptr<ConstStatement> Parser::parseConstStatement() {
     stmt->value = parseExpression(LOWEST);
 
     // addFunctionSupport
+    if (auto fl = dynamic_cast<Function*>(stmt->value.get())) {
+        fl->funcName = stmt->name->value;
+    }
 
     return stmt;
 }
@@ -71,7 +78,7 @@ std::unique_ptr<ExpressionStatement> Parser::parseExpressionStatement() {
     return stmt;
 }
 
-std::unique_ptr<Expression> Parser::parseExpression(const int &precedence) {
+std::unique_ptr<Node> Parser::parseExpression(const int &precedence) {
     auto prefix = prefixParseFns[currentToken.Type];
 
     if (!prefix) {
@@ -87,7 +94,7 @@ std::unique_ptr<Expression> Parser::parseExpression(const int &precedence) {
         }
 
         getNextToken();
-        leftExp = std::unique_ptr<Expression>(infix(std::move(leftExp)));
+        leftExp = std::unique_ptr<Node>(infix(std::move(leftExp)));
     };
 
     return leftExp;
@@ -101,20 +108,35 @@ Precedence Parser::peekPrecedence() {
     return Precedence::LOWEST;
 }
 
-//Program Parser::parseProgram() {
-//    Program program{};
-//    program.Statements = std::vector<Statement*>{};
-//
-//    while (!currentTokenIs(END_OF_FILE)) {
-//        auto statement = parseStatement();
-//        if (statement) {
-//            program.Statements = program.Statements.push_back(statement);
-//        }
-//        getNextToken();
-//    }
-//
-//    return program;
-//}
+Precedence Parser::currentPrecedence() {
+    auto it = precedences.find(currentToken.Type);
+    if (it != precedences.end()) {
+        return static_cast<Precedence>(it->second);
+    }
+    return Precedence::LOWEST;
+}
+
+
+Program Parser::parseProgram() {
+    Program program{};
+    program.statements = std::move(std::vector<std::unique_ptr<Statement>>{});
+
+    while (!currentTokenIs(END_OF_FILE)) {
+        auto statement = parseStatement();
+        if (statement) {
+            program.statements.emplace_back(std::move(statement));
+        }
+        getNextToken();
+    }
+
+    return program;
+}
+
+std::unique_ptr<Node> Parser::parseIntegerLiteral() {
+    auto intLit = std::make_unique<IntegerLiteral>(currentToken);
+    intLit->value = std::stoi(currentToken.Literal);
+    return intLit;
+}
 
 std::unique_ptr<Statement> Parser::parseStatement() {
     if (currentToken.Type == CONST) {
@@ -126,5 +148,48 @@ std::unique_ptr<Statement> Parser::parseStatement() {
     }
 }
 
+void Parser::registerPrefix(const TokenType& tokenType, prefixParseFn fn) {
+    prefixParseFns[tokenType] = std::move(fn);
+}
 
+void Parser::registerInfix(const TokenType& tokenType, infixParseFn fn) {
+    infixParseFns[tokenType] = std::move(fn);
+}
+
+std::unique_ptr<Node> Parser::parsePrefixExpression() {
+    auto expression = std::make_unique<PrefixExpression>(currentToken, currentToken.Literal);
+    getNextToken();
+    expression->right = parseExpression(PREFIX);
+    return expression;
+}
+
+std::unique_ptr<Node> Parser::parseInfixExpression(std::unique_ptr<Node> left) {
+    auto expression = std::make_unique<InfixExpression>(currentToken, currentToken.Literal, std::move(left));
+    auto precedence = currentPrecedence();
+    getNextToken();
+    expression->right = parseExpression(precedence);
+    return expression;
+}
+
+Parser::Parser(Lexer* l) : lexer(l) {
+    registerPrefix(IDENTIFIER, [this]() { return this->parseIdentifier(); });
+    registerPrefix(INT, [this]() { return this->parseIntegerLiteral(); });
+    registerPrefix(STRING, [this]() { return this->parseStringLiteral(); });
+    registerPrefix(BANG, [this]() { return this->parsePrefixExpression(); });
+    registerPrefix(MINUS, [this]() { return this->parsePrefixExpression(); });
+    registerPrefix(TRUE, [this]() { return this->parseBoolean(); });
+    registerPrefix(FALSE, [this]() { return this->parseBoolean(); });
+
+    registerInfix(PLUS, [this](std::unique_ptr<Node> left) { return this->parseInfixExpression(std::move(left)); });
+    registerInfix(MINUS, [this](std::unique_ptr<Node> left) { return this->parseInfixExpression(std::move(left)); });
+    registerInfix(SLASH, [this](std::unique_ptr<Node> left) { return this->parseInfixExpression(std::move(left)); });
+    registerInfix(ASTERISK, [this](std::unique_ptr<Node> left) { return this->parseInfixExpression(std::move(left)); });
+    registerInfix(EQ, [this](std::unique_ptr<Node> left) { return this->parseInfixExpression(std::move(left)); });
+    registerInfix(NOT_EQ, [this](std::unique_ptr<Node> left) { return this->parseInfixExpression(std::move(left)); });
+    registerInfix(LESS_THAN, [this](std::unique_ptr<Node> left) { return this->parseInfixExpression(std::move(left)); });
+    registerInfix(GREATER_THAN, [this](std::unique_ptr<Node> left) { return this->parseInfixExpression(std::move(left)); });
+
+    getNextToken();
+    getNextToken();
+}
 
