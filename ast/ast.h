@@ -17,17 +17,8 @@ struct Node {
     virtual std::string string() = 0;
 };
 
-struct Statement : public Node {
-    Statement() = default;
-    ~Statement() override = default;
-};
-
-//struct Expression : public Node {
-//    ~Expression() override = default;
-//};
-
 struct Program : public Node {
-    std::vector<std::unique_ptr<Statement>> statements;
+    std::vector<std::unique_ptr<Node>> nodes;
     Program() = default;
     ~Program() override = default;
     Program(const Program&) = delete;
@@ -41,23 +32,23 @@ struct Program : public Node {
 struct Identifier : public Node {
     Token token;
     std::string value;
-    Identifier(Token token, std::string value) : token(std::move(token)), value(std::move(value)) {}
+    Identifier(Token token, std::string value) : token(token), value(value) {}
 
     inline std::string string() override { return token.Literal; }
 };
 
-struct IntegerLiteral : public Node {
+struct Integer : public Node {
     Token token;
     int value;
-    IntegerLiteral(Token token) : token(std::move(token)) {};
+    Integer(Token token) : token(token) {};
 
     inline std::string string() override { return token.Literal; }
 };
 
-struct StringLiteral : public Node {
+struct String : public Node {
     Token token;
     std::string value;
-    StringLiteral(Token token, std::string value) : token(std::move(token)), value(std::move(value)) {};
+    String(Token token, std::string value) : token(token), value(value) {};
 
     inline std::string string() override { return token.Literal; }
 };
@@ -65,12 +56,12 @@ struct StringLiteral : public Node {
 struct Boolean : public Node {
     Token token;
     bool value;
-    Boolean(Token token, bool value) : token(std::move(token)), value(value) {};
+    Boolean(Token token, bool value) : token(token), value(value) {};
 
     inline std::string string() override { return token.Literal; }
 };
 
-struct ConstStatement : public Statement {
+struct ConstStatement : public Node {
     Token token;
     std::unique_ptr<Identifier> name;
     std::unique_ptr<Node> value;
@@ -80,7 +71,7 @@ struct ConstStatement : public Statement {
     std::string string() override;
 };
 
-struct ReturnStatement : public Statement {
+struct ReturnStatement : public Node {
     Token token;
     std::unique_ptr<Node> value;
 
@@ -89,7 +80,7 @@ struct ReturnStatement : public Statement {
     std::string string() override;
 };
 
-struct ExpressionStatement : public Statement {
+struct ExpressionStatement : public Node {
     Token token;
     std::unique_ptr<Node> value;
 
@@ -98,49 +89,78 @@ struct ExpressionStatement : public Statement {
     std::string string() override;
 };
 
-struct BlockStatement : public Node {
+struct CodeBlock : public Node {
     Token token;
-    std::vector<std::unique_ptr<Statement>> statements;
+    std::vector<std::unique_ptr<Node>> nodes;
+    CodeBlock(Token& token) : token(token) {};
 
     std::string string() override;
 };
 
-struct IfExpressionStatement : public Statement {
+struct IfElseNode : public Node {
     Token token;
-    Node* condition;
-    BlockStatement* consequence;
-    BlockStatement* alternative;
+    std::unique_ptr<Node> condition;
+    std::unique_ptr<CodeBlock> consequence;
+    std::unique_ptr<CodeBlock> alternative;
+    IfElseNode(Token& token) : token(token) {};
 
     std::string string() override;
 };
 
-struct PrefixExpression : public Node {
+struct Prefix : public Node {
     Token token;
     std::string Operator;
     std::unique_ptr<Node> right;
 
-    PrefixExpression(Token token, std::string Operator) : token(std::move(token)), Operator(std::move(Operator)) {};
+    Prefix(Token token, std::string Operator) : token(token), Operator(Operator) {};
 
     std::string string() override;
 };
 
-struct InfixExpression : public Node {
+struct Infix : public Node {
     Token token;
     std::string Operator;
     std::unique_ptr<Node> right;
     std::unique_ptr<Node> left;
 
-    InfixExpression(Token token, std::string Operator, std::unique_ptr<Node> left) :
-        token(std::move(token)), Operator(std::move(Operator)), left(std::move(left)) {};
+    Infix(Token token, std::string Operator, std::unique_ptr<Node> left) :
+        token(token), Operator(Operator), left(std::move(left)) {};
 
     std::string string() override;
 };
 
 struct Function : public Node {
     Token token;
-    std::vector<Identifier> parameters;
-    BlockStatement* body;
+    std::vector<std::unique_ptr<Identifier>> parameters;
+    std::unique_ptr<CodeBlock> body;
     std::string funcName;
+    Function(Token& token) : token(token) {};
+
+    std::string string() override;
+};
+
+struct FunctionCall : public Node {
+    Token token;
+    std::unique_ptr<Node> func;
+    std::vector<std::unique_ptr<Node>> args;
+    FunctionCall(Token& token, std::unique_ptr<Node> func) : token(token), func(std::move(func)) {};
+
+    std::string string() override;
+};
+
+struct Array : public Node {
+    Token token;
+    std::vector<std::unique_ptr<Node>> elements;
+    Array(Token& token) : token(token) {};
+
+    std::string string() override;
+};
+
+struct Index : public Node {
+    Token token;
+    std::unique_ptr<Node> left;
+    std::unique_ptr<Node> index;
+    Index(Token& token, std::unique_ptr<Node> left) : token(token), left(std::move(left)) {};
 
     std::string string() override;
 };

@@ -3,11 +3,12 @@
 //
 
 #include "ast.h"
+#include "../logger/logger.h"
 
 std::string Program::string() {
     std::stringstream ss;
 
-    for (auto& stmt : statements) {
+    for (auto& stmt : nodes) {
         ss << stmt->string() << "\n";
     }
 
@@ -36,7 +37,7 @@ std::string ReturnStatement::string() {
     return ss.str();
 }
 
-std::string PrefixExpression::string() {
+std::string Prefix::string() {
     std::stringstream ss;
 
     ss << "(" << Operator << right->string() << ")";
@@ -44,7 +45,7 @@ std::string PrefixExpression::string() {
     return ss.str();
 }
 
-std::string InfixExpression::string() {
+std::string Infix::string() {
     std::stringstream ss;
 
     ss << "(" << left->string() << " " + Operator + " " << right->string() << ")";
@@ -57,10 +58,10 @@ std::string ExpressionStatement::string() {
     return "";
 }
 
-std::string BlockStatement::string() {
+std::string CodeBlock::string() {
     std::ostringstream out;
 
-    for (const auto& s : statements) {
+    for (const auto& s : nodes) {
         if (s) {
             out << s->string();
         }
@@ -69,7 +70,7 @@ std::string BlockStatement::string() {
     return out.str();
 }
 
-std::string IfExpressionStatement::string() {
+std::string IfElseNode::string() {
     std::ostringstream out;
 
     out << "if ";
@@ -95,7 +96,7 @@ std::string Function::string() {
     out << "(";
 
     for (size_t i = 0; i < parameters.size(); ++i) {
-        out << parameters[i].string();
+        out << parameters[i]->string();
         if (i < parameters.size() - 1) {
             out << ", ";
         }
@@ -105,6 +106,60 @@ std::string Function::string() {
     if (body) {
         out << body->string();
     }
+
+    return out.str();
+}
+
+std::string FunctionCall::string() {
+    std::ostringstream out;
+
+    std::vector<std::string> arguments;
+    arguments.reserve(args.size());
+    for (const auto& arg : args) {
+        arguments.push_back(arg->string());
+    }
+
+    std::string argumentsString;
+    for (auto i=0; i<arguments.size(); i++) {
+        if (i != arguments.size()-1) {
+        argumentsString += arguments[i] + ", ";
+        } else {
+            argumentsString += arguments[i] + ")";
+        }
+    }
+
+    out << func->string() << "(" << argumentsString;
+
+    return out.str();
+}
+
+std::string Array::string() {
+    std::ostringstream out;
+
+    std::vector<std::string> arguments;
+    arguments.reserve(elements.size());
+    for (const auto& arg : elements) {
+        arguments.push_back(arg->string());
+    }
+
+    std::string elementsString;
+    for (auto i=0; i<arguments.size(); i++) {
+        if (i != arguments.size()-1) {
+            elementsString += arguments[i] + ", ";
+        } else {
+            elementsString += arguments[i] + "]";
+        }
+    }
+
+    out <<  "[" << elementsString;
+
+    return out.str();
+}
+
+std::string Index::string() {
+    std::ostringstream out;
+
+    out << "(" << left->string() << "[" << index->string() << "])";
 
     return out.str();
 }
