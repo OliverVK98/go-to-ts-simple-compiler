@@ -57,7 +57,7 @@ private:
     std::unique_ptr<ConstStatement> parseConstStatement();
     std::unique_ptr<ReturnStatement> parseReturnStatement();
     std::unique_ptr<Node> parseExpressionStatement();
-    inline std::unique_ptr<Node> parseIdentifier() { return std::make_unique<Identifier>(currentToken, currentToken.Literal); }
+    inline std::unique_ptr<Identifier> parseIdentifier() { return std::make_unique<Identifier>(currentToken, currentToken.Literal); }
     std::unique_ptr<Integer> parseIntegerLiteral();
     inline std::unique_ptr<String> parseStringLiteral() { return std::make_unique<String>(currentToken, currentToken.Literal); }
     inline std::unique_ptr<Boolean> parseBoolean() { return std::make_unique<Boolean>(currentToken, currentTokenIs(TRUE)); }

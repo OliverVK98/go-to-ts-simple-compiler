@@ -9,7 +9,7 @@ std::string Program::string() {
     std::stringstream ss;
 
     for (auto& stmt : nodes) {
-        ss << stmt->string() << "\n";
+        ss << stmt->string();
     }
 
     return ss.str();
@@ -18,10 +18,12 @@ std::string Program::string() {
 std::string ConstStatement::string() {
     std::stringstream ss;
 
-    ss << token.Literal << " ";
-    if (name) ss << name->string() << " = ";
-    if (value) ss << value->string();
-    ss << ";";
+    ss << "ConstStatement(" << name->string() << " = " << value->string() << ")";
+
+//    ss << token.Literal << " ";
+//    if (name) ss << name->string() << " = ";
+//    if (value) ss << value->string();
+//    ss << ";";
 
     return ss.str();
 }
@@ -29,10 +31,15 @@ std::string ConstStatement::string() {
 std::string ReturnStatement::string() {
     std::stringstream ss;
 
-    ss << token.Literal << " ";
-    if(value) ss<<value->string();
+    ss << "ReturnStatement(";
 
-    ss << ";";
+    if (value) {
+        ss << value->string();
+    } else {
+        ss << "EMPTY";
+    }
+
+    ss << ")";
 
     return ss.str();
 }
@@ -54,7 +61,7 @@ std::string Infix::string() {
 }
 
 std::string ExpressionStatement::string() {
-    if (value) { return value->string(); }
+    if (value) { return "ExpressionStatement(" + value->string() + ")"; }
     return "";
 }
 
@@ -73,15 +80,26 @@ std::string CodeBlock::string() {
 std::string IfElseNode::string() {
     std::ostringstream out;
 
-    out << "if ";
-    if (condition) out << condition->string();
+    out << "IfStatement(";
+    if (condition) {
+        out << "Condition(" << condition->string() << ")";
+    } else {
+        out << "Condition()";
+    }
     out << " ";
-    if (consequence) out << consequence->string();
+    if (consequence) {
+        out << "Consequence(" << consequence->string() << ")";
+    } else {
+        out << "Consequence()";
+    }
 
     if (alternative) {
-        out << " else ";
-        out << alternative->string();
+        out << " Alternative(";
+        out << alternative->string() << ")";
+    } else {
+        out << " Alternative()";
     }
+    out << ")";
 
     return out.str();
 }
@@ -89,11 +107,13 @@ std::string IfElseNode::string() {
 std::string Function::string() {
     std::ostringstream out;
 
-    out << token.Literal;
+    out << "Function(";
     if (!funcName.empty()) {
-        out << "<" << funcName << ">";
+        out << "Name(" << funcName << ")";
+    } else {
+        out << "Name()";
     }
-    out << "(";
+    out << " Params(";
 
     for (size_t i = 0; i < parameters.size(); ++i) {
         out << parameters[i]->string();
@@ -102,10 +122,12 @@ std::string Function::string() {
         }
     }
 
-    out << ") ";
+    out << ") Body(";
     if (body) {
         out << body->string();
     }
+
+    out << "))";
 
     return out.str();
 }
@@ -128,7 +150,7 @@ std::string FunctionCall::string() {
         }
     }
 
-    out << func->string() << "(" << argumentsString;
+    out << "FunctionCall(" +  func->string() << "(" << argumentsString + ")";
 
     return out.str();
 }
@@ -151,7 +173,7 @@ std::string Array::string() {
         }
     }
 
-    out <<  "[" << elementsString;
+    out <<  "Array([" << elementsString << ")";
 
     return out.str();
 }
@@ -159,7 +181,7 @@ std::string Array::string() {
 std::string Index::string() {
     std::ostringstream out;
 
-    out << "(" << left->string() << "[" << index->string() << "])";
+    out << "IndexExpression(" << "Left:(" + left->string() +")" << " Right: [" << index->string() << "])";
 
     return out.str();
 }

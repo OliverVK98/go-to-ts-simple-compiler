@@ -34,7 +34,7 @@ struct Identifier : public Node {
     std::string value;
     Identifier(Token token, std::string value) : token(token), value(value) {}
 
-    inline std::string string() override { return token.Literal; }
+    inline std::string string() override { return "Identifier(" + token.Literal + ")"; }
 };
 
 struct Integer : public Node {
@@ -42,7 +42,7 @@ struct Integer : public Node {
     int value;
     Integer(Token token) : token(token) {};
 
-    inline std::string string() override { return token.Literal; }
+    inline std::string string() override { return "Integer(" + token.Literal + ")"; }
 };
 
 struct String : public Node {
@@ -50,7 +50,7 @@ struct String : public Node {
     std::string value;
     String(Token token, std::string value) : token(token), value(value) {};
 
-    inline std::string string() override { return token.Literal; }
+    inline std::string string() override { return "String(" + token.Literal + ")"; }
 };
 
 struct Boolean : public Node {
@@ -58,7 +58,7 @@ struct Boolean : public Node {
     bool value;
     Boolean(Token token, bool value) : token(token), value(value) {};
 
-    inline std::string string() override { return token.Literal; }
+    inline std::string string() override { return "Boolean(" + token.Literal + ")"; }
 };
 
 struct ConstStatement : public Node {

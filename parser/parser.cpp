@@ -142,6 +142,10 @@ std::unique_ptr<Node> Parser::parseStatement() {
         return parseConstStatement();
     } else if (currentToken.Type == RETURN) {
         return parseReturnStatement();
+    } else if (currentToken.Type == IF) {
+        return parseIfNode();
+    } else if (currentToken.Type == FUNCTION) {
+        return parseFunctionLiteral();
     } else {
         return parseExpressionStatement();
     }
@@ -190,8 +194,15 @@ std::unique_ptr<CodeBlock> Parser::parseBlockStatement() {
 std::unique_ptr<Function> Parser::parseFunctionLiteral() {
     auto func = std::make_unique<Function>(currentToken);
 
-    if(!checkNextTokenAndAdvance(LPAREN)) {
+    if(!nextTokenIs(LPAREN) && !nextTokenIs(IDENTIFIER)) {
         return nullptr;
+    }
+
+    getNextToken();
+
+    if (currentTokenIs(IDENTIFIER)) {
+        func->funcName = parseIdentifier()->string();
+        getNextToken();
     }
 
     func->parameters = parseFunctionParameters();

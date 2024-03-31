@@ -52,7 +52,7 @@ char Lexer::peekChar() {
 }
 
 std::string Lexer::readString() {
-    auto startPosition = position++;
+    auto startPosition = position + 1 ;
     while (true) {
         readChar();
         if (ch == '"' || ch == 0) {
