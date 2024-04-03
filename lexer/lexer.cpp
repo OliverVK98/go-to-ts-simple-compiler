@@ -4,9 +4,12 @@
 
 #include "lexer.h"
 
+#include <utility>
+#include "../logger/logger.h"
+
 void Lexer::readChar() {
     if (nextPosition >= input.length()) {
-        ch = '0';
+        ch = '\0';
     } else {
         ch = input[nextPosition];
     }
@@ -19,7 +22,11 @@ Token newToken(const TokenType& tokenType, char ch) {
     return Token{tokenType, ch};
 }
 
-std::string Lexer::readIdentifier() {
+Token newToken(const TokenType& tokenType, std::string ch) {
+    return Token{tokenType, std::move(ch)};
+}
+
+std::string Lexer::readIdentifierOrType() {
     auto startPosition = position;
     while (isLetter(ch)) {
         readChar();
@@ -48,6 +55,14 @@ char Lexer::peekChar() {
         return '0';
     } else {
         return input[nextPosition];
+    }
+}
+
+std::string Lexer::peekTwo() {
+    if (nextPosition >= input.length() && nextPosition + 1 >= input.length()) {
+        return "";
+    } else {
+        return std::string(1, input[nextPosition]) + std::string(1, input[nextPosition + 1]);
     }
 }
 
@@ -98,6 +113,13 @@ Token Lexer::nextToken() {
         case '/':
             tok = newToken(SLASH, ch);
             break;
+        case '.':
+            if (peekTwo() == "..") {
+                tok = newToken(VARIADIC, "...");
+                readChar();
+                readChar();
+                break;
+            }
         case '*':
             tok = newToken(ASTERISK, ch);
             break;
@@ -145,13 +167,17 @@ Token Lexer::nextToken() {
                 tok = newToken(COLON,  ch);
             }
             break;
-        case '0':
+        case '\0':
             tok.Literal = "";
             tok.Type = END_OF_FILE;
             break;
         default:
             if (isLetter(ch)) {
-                tok.Literal = readIdentifier();
+                tok.Literal = readIdentifierOrType();
+                if (LookupType(tok.Literal) != NOTYPE_TYPE) {
+                    tok.Type = LookupType(tok.Literal);
+                    return tok;
+                }
                 tok.Type = LookupIdent(tok.Literal);
                 return tok;
             } else if (isDigit(ch)) {

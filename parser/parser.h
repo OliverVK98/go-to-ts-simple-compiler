@@ -6,7 +6,6 @@
 #define GO_TO_TS_SIMPLE_COMPILER_PARSER_H
 
 #include <unordered_map>
-#include "../token/token.h"
 #include <functional>
 #include <memory>
 #include "../ast/ast.h"
@@ -27,10 +26,12 @@ extern std::unordered_map<TokenType, int> precedences;
 using prefixParseFn = std::function<std::unique_ptr<Node>()>;
 using infixParseFn = std::function<std::unique_ptr<Node>(std::unique_ptr<Node>)>;
 
+bool startsWithType(const std::string& str);
+
 class Parser {
 public:
     explicit Parser(Lexer* l);
-    Program parseProgram();
+    std::unique_ptr<Program> parseProgram();
 
 private:
     Lexer* lexer;
@@ -43,6 +44,7 @@ private:
     inline void getNextToken() { currentToken = nextToken; nextToken = lexer->nextToken(); }
     inline bool currentTokenIs(const TokenType &t) const { return currentToken.Type == t; }
     inline bool nextTokenIs(const TokenType &t) const { return nextToken.Type == t; }
+    inline bool tokenTypeIsTypeNode(const TokenType& t) const { return t == BOOL_TYPE || t == STRING_TYPE || t == INT_TYPE || t == ARRAY_TYPE; }
     bool checkNextTokenAndAdvance(const TokenType& t);
     inline std::vector<std::string> getErrors() const { return errors; }
 
@@ -52,26 +54,28 @@ private:
     void registerPrefix(const TokenType& tokenType, prefixParseFn fn);
     void registerInfix(const TokenType& tokenType, infixParseFn fn);
 
-    std::unique_ptr<Node> parseExpression(const int &precedence);
-    std::unique_ptr<Node> parseStatement();
-    std::unique_ptr<ConstStatement> parseConstStatement();
-    std::unique_ptr<ReturnStatement> parseReturnStatement();
-    std::unique_ptr<Node> parseExpressionStatement();
+    std::unique_ptr<Node> parseRHValue(const int &precedence);
+    std::unique_ptr<Node> parseNode();
+    std::unique_ptr<ConstNode> parseConstNode();
+    std::unique_ptr<VarNode> parseVarNode();
+    std::unique_ptr<ReturnNode> parseReturnNode();
+    std::unique_ptr<Node> parseRHValueNode();
     inline std::unique_ptr<Identifier> parseIdentifier() { return std::make_unique<Identifier>(currentToken, currentToken.Literal); }
     std::unique_ptr<Integer> parseIntegerLiteral();
     inline std::unique_ptr<String> parseStringLiteral() { return std::make_unique<String>(currentToken, currentToken.Literal); }
     inline std::unique_ptr<Boolean> parseBoolean() { return std::make_unique<Boolean>(currentToken, currentTokenIs(TRUE)); }
-    std::unique_ptr<Prefix> parsePrefixExpression();
-    std::unique_ptr<Infix> parseInfixExpression(std::unique_ptr<Node> left);
-    std::unique_ptr<CodeBlock> parseBlockStatement();
-    std::unique_ptr<Function> parseFunctionLiteral();
+    std::unique_ptr<Prefix> parsePrefixNode();
+    std::unique_ptr<Infix> parseInfixNode(std::unique_ptr<Node> left);
+    std::unique_ptr<CodeBlock> parseBlockNode();
+    std::unique_ptr<Function> parseFunctionDeclaration();
     std::vector<std::unique_ptr<Identifier>> parseFunctionParameters();
-    std::unique_ptr<Node> parseGroupedExpression();
+    std::unique_ptr<Node> parseGroupedNodes();
     std::unique_ptr<IfElseNode> parseIfNode();
     std::unique_ptr<FunctionCall> parseFunctionCall(std::unique_ptr<Node> func);
-    std::vector<std::unique_ptr<Node>> parseExpressionList(TokenType end);
-    std::unique_ptr<Node> parseArray();
+    std::vector<std::unique_ptr<Node>> parseNodeList(TokenType end);
+    std::unique_ptr<Array> parseArray();
     std::unique_ptr<Node> parseIndex(std::unique_ptr<Node> left);
+    std::unique_ptr<TypeNode> parseType();
 };
 
 #endif //GO_TO_TS_SIMPLE_COMPILER_PARSER_H

@@ -16,7 +16,20 @@ public:
         }
     }
 
-    void log(const std::string& message) {
+    void log(unsigned long message) {
+        log_file << message << std::endl;
+    }
+
+    void log(std::string message) {
+        log_file << message << std::endl;
+    }
+
+    void log(int message) {
+        log_file << message << std::endl;
+    }
+
+
+    void log(bool message) {
         log_file << message << std::endl;
     }
 

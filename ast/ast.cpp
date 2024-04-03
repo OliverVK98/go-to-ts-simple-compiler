@@ -5,36 +5,43 @@
 #include "ast.h"
 #include "../logger/logger.h"
 
-std::string Program::string() {
+std::string Program::testString() {
     std::stringstream ss;
 
     for (auto& stmt : nodes) {
-        ss << stmt->string();
+        ss << stmt->testString();
     }
 
     return ss.str();
 }
 
-std::string ConstStatement::string() {
+std::string Program::string() {
+    return std::string();
+}
+
+std::string ConstNode::testString() {
     std::stringstream ss;
 
-    ss << "ConstStatement(" << name->string() << " = " << value->string() << ")";
-
-//    ss << token.Literal << " ";
-//    if (name) ss << name->string() << " = ";
-//    if (value) ss << value->string();
-//    ss << ";";
+    ss << "ConstNode(" << name->testString() << " = " << value->testString() << ")";
 
     return ss.str();
 }
 
-std::string ReturnStatement::string() {
+std::string VarNode::testString() {
     std::stringstream ss;
 
-    ss << "ReturnStatement(";
+    ss << "VarNode(" << name->testString() << " = " << value->testString() << ")";
+
+    return ss.str();
+}
+
+std::string ReturnNode::testString() {
+    std::stringstream ss;
+
+    ss << "ReturnNode(";
 
     if (value) {
-        ss << value->string();
+        ss << value->testString();
     } else {
         ss << "EMPTY";
     }
@@ -44,58 +51,58 @@ std::string ReturnStatement::string() {
     return ss.str();
 }
 
-std::string Prefix::string() {
+std::string Prefix::testString() {
     std::stringstream ss;
 
-    ss << "(" << Operator << right->string() << ")";
+    ss << "(" << Operator << right->testString() << ")";
 
     return ss.str();
 }
 
-std::string Infix::string() {
+std::string Infix::testString() {
     std::stringstream ss;
 
-    ss << "(" << left->string() << " " + Operator + " " << right->string() << ")";
+    ss << "(" << left->testString() << " " + Operator + " " << right->testString() << ")";
 
     return ss.str();
 }
 
-std::string ExpressionStatement::string() {
-    if (value) { return "ExpressionStatement(" + value->string() + ")"; }
+std::string RHValue::testString() {
+    if (value) { return "RHValue(" + value->testString() + ")"; }
     return "";
 }
 
-std::string CodeBlock::string() {
+std::string CodeBlock::testString() {
     std::ostringstream out;
 
     for (const auto& s : nodes) {
         if (s) {
-            out << s->string();
+            out << s->testString();
         }
     }
 
     return out.str();
 }
 
-std::string IfElseNode::string() {
+std::string IfElseNode::testString() {
     std::ostringstream out;
 
     out << "IfStatement(";
     if (condition) {
-        out << "Condition(" << condition->string() << ")";
+        out << "Condition(" << condition->testString() << ")";
     } else {
         out << "Condition()";
     }
     out << " ";
     if (consequence) {
-        out << "Consequence(" << consequence->string() << ")";
+        out << "Consequence(" << consequence->testString() << ")";
     } else {
         out << "Consequence()";
     }
 
     if (alternative) {
         out << " Alternative(";
-        out << alternative->string() << ")";
+        out << alternative->testString() << ")";
     } else {
         out << " Alternative()";
     }
@@ -104,7 +111,7 @@ std::string IfElseNode::string() {
     return out.str();
 }
 
-std::string Function::string() {
+std::string Function::testString() {
     std::ostringstream out;
 
     out << "Function(";
@@ -116,7 +123,7 @@ std::string Function::string() {
     out << " Params(";
 
     for (size_t i = 0; i < parameters.size(); ++i) {
-        out << parameters[i]->string();
+        out << parameters[i]->testString();
         if (i < parameters.size() - 1) {
             out << ", ";
         }
@@ -124,7 +131,7 @@ std::string Function::string() {
 
     out << ") Body(";
     if (body) {
-        out << body->string();
+        out << body->testString();
     }
 
     out << "))";
@@ -132,13 +139,13 @@ std::string Function::string() {
     return out.str();
 }
 
-std::string FunctionCall::string() {
+std::string FunctionCall::testString() {
     std::ostringstream out;
 
     std::vector<std::string> arguments;
     arguments.reserve(args.size());
     for (const auto& arg : args) {
-        arguments.push_back(arg->string());
+        arguments.push_back(arg->testString());
     }
 
     std::string argumentsString;
@@ -150,7 +157,7 @@ std::string FunctionCall::string() {
         }
     }
 
-    out << "FunctionCall(" +  func->string() << "(" << argumentsString + ")";
+    out << "FunctionCall(" + func->testString() << "(" << argumentsString + ")";
 
     return out.str();
 }
@@ -169,6 +176,29 @@ std::string Array::string() {
         if (i != arguments.size()-1) {
             elementsString += arguments[i] + ", ";
         } else {
+            elementsString += arguments[i];
+        }
+    }
+
+    out <<  "[" << elementsString << "]";
+
+    return out.str();
+}
+
+std::string Array::testString() {
+    std::ostringstream out;
+
+    std::vector<std::string> arguments;
+    arguments.reserve(elements.size());
+    for (const auto& arg : elements) {
+        arguments.push_back(arg->testString());
+    }
+
+    std::string elementsString;
+    for (auto i=0; i<arguments.size(); i++) {
+        if (i != arguments.size()-1) {
+            elementsString += arguments[i] + ", ";
+        } else {
             elementsString += arguments[i] + "]";
         }
     }
@@ -178,10 +208,16 @@ std::string Array::string() {
     return out.str();
 }
 
-std::string Index::string() {
+std::string Index::testString() {
     std::ostringstream out;
 
-    out << "IndexExpression(" << "Left:(" + left->string() +")" << " Right: [" << index->string() << "])";
+    out << "IndexExpression(" << "Left:(" + left->testString() + ")" << " Right: [" << index->testString() << "])";
 
     return out.str();
 }
+
+std::string boolToString(bool boolV) {
+    if (boolV) { return "true";} else { return "false"; }
+}
+
+

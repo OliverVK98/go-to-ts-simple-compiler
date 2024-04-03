@@ -23,10 +23,11 @@ public:
 
     void readChar();
     Token nextToken();
-    std::string readIdentifier();
+    std::string readIdentifierOrType();
     std::string readNumber();
     void skipWhitespace();
     char peekChar();
+    std::string peekTwo();
     std::string readString();
 };
 

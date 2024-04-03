@@ -12,7 +12,22 @@ std::unordered_map<std::string, TokenType> keywords = {
         {"if",     IF},
         {"else",   ELSE},
         {"return", RETURN},
+        {"var", VAR}
 };
+
+std::unordered_map<std::string, TokenType> typeKeywords = {
+        {"string",     STRING_TYPE},
+        {"int",     INT_TYPE},
+        {"bool",     BOOL_TYPE},
+};
+
+TokenType LookupType(const std::string& type) {
+    auto it = typeKeywords.find(type);
+    if (it != typeKeywords.end()) {
+        return it->second;
+    }
+    return NOTYPE_TYPE;
+}
 
 TokenType LookupIdent(const std::string& ident) {
     auto it = keywords.find(ident);
@@ -23,6 +38,6 @@ TokenType LookupIdent(const std::string& ident) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Token& token) {
-    os << "Token(Type: " << token.Type << ", Literal: " << token.Literal << ")";
+    os << "Token(TypeNode: " << token.Type << ", Literal: " << token.Literal << ")";
     return os;
 }

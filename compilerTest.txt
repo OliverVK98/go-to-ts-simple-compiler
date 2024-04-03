@@ -1,0 +1,9 @@
+let explicitInt: int = 10;
+let implicitInt: int = 20;
+let noValueInt: int;
+let explicitBool: boolean = true;
+let implicitBool: boolean = false;
+let noValueBool: boolean;
+let explicitString: string = "explicit";
+let implicitString: string = "implicit";
+let noValueString: string;
