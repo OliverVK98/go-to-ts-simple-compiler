@@ -13,6 +13,10 @@ std::unordered_map<TokenType , std::string> tokenTypeToStringTypeMap = {
 };
 
 void Compiler::compile(const std::unique_ptr<Node>& node) {
+
+    logger console;
+//    console.log(123);
+
     if (auto program = dynamic_cast<Program*>(node.get())) {
         for (const auto& statement : program->nodes) {
             compile(statement);

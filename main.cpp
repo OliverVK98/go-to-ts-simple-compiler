@@ -5,23 +5,50 @@
 #include "parser/parser.h"
 #include "compiler/compiler.h"
 
-std::string testCase2 = R"(var arr = [5]int{1, 2, 3, 4, 5}; var arr [5]int = [5]int{1, 2, 3, 4, 5}; var arr [5]int; var b int; var b int = 5; var c bool; var c bool = true; var d string; var d string = "hello";)";
 std::string testCase = R"(
+const (
+    Name string = "Go"
+    Version = "1.16"
+    ReleasedYear int = 2009
+    TrueFlag bool = true
+    FalseFlag = false
+)
+
+const a = 5;
+const b bool = false;
+
 var (
     explicitInt int = 10
     implicitInt = 20
     noValueInt int
 
     explicitBool bool = true
-    implicitBool = false
-    noValueBool bool
-
     explicitString string = "explicit"
-    implicitString = "implicit"
-    noValueString string
+
+    explicitArray [5]int = [5]int{1, 2, 3, 4, 5}
+    implicitArray = [5]int{6, 7, 8, 9, 10}
+    noValueArray [5]int
 )
+
+var intVar int = 5
+var boolVar = false
+var stringVar string = "hello"
+var uninitString string
+
+var boolArrayVar [2]bool = [2]bool{true, false}
+var arr = [5]int{1, 2, 3, 4, 5}
+var uninitIntArray [3]int
+
 )";
-std::string testCase1 = R"(
+std::string testCase3 = R"(
+const (
+    Name string = "Go"
+    Version = "1.16"
+    ReleasedYear int = 2009
+    TrueFlag bool = true
+    FalseFlag = false
+)
+
 var (
     explicitInt int = 10
     implicitInt = 20
@@ -39,28 +66,20 @@ var (
     implicitArray = [5]int{6, 7, 8, 9, 10}
     noValueArray [5]int
 )
-)";
-std::string testCase3 = R"(
-const (
-    Name string = "Go"
-    Version = "1.16"
-    ReleasedYear int = 2009
-    TrueFlag bool = true
-    FalseFlag = false
-)
 
-var intVar1 int = 5
-var intVar2 = 10
-var boolVar1 bool = true
-var boolVar2 = false
-var stringVar1 string = "hello"
-var stringVar2 = "world"
+var intVar int = 5
+var intVar = 10
+var boolVar bool = true
+var boolVar = false
+var stringVar string = "hello"
+var stringVar = "world"
 
 var intArrayVar [5]int = [5]int{1, 2, 3, 4, 5}
 var boolArrayVar [2]bool = [2]bool{true, false}
 var stringArrayVar [3]string = [3]string{"a", "b", "c"}
+var arr [5]int = [5]int{1, 2, 3, 4, 5}
+var arr = [5]int{1, 2, 3, 4, 5}
 
-// Variables without initial values
 var uninitInt int
 var uninitBool bool
 var uninitString string

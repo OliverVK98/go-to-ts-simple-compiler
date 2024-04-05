@@ -127,6 +127,8 @@ std::unique_ptr<ConstNode> Parser::parseConstNode() {
 
 std::unique_ptr<VarNode> Parser::parseVarNode() {
     auto node = std::make_unique<VarNode>(currentToken);
+    logger console;
+    console.log(currentToken.Literal);
     if (checkNextTokenAndAdvance(IDENTIFIER)) {
         node->name = std::make_unique<Identifier>(currentToken, currentToken.Literal);
 
@@ -141,7 +143,7 @@ std::unique_ptr<VarNode> Parser::parseVarNode() {
         }
 
         if (!nextTokenIs(ASSIGN)) {
-            // Parsing undefined vars
+            // Parsing vars with no value
             if (node->type) {
                 node->value = std::make_unique<Integer>();
                 node->value->holdsValue = false;
@@ -150,7 +152,7 @@ std::unique_ptr<VarNode> Parser::parseVarNode() {
                 }
                 return node;
             } else {
-                throw std::runtime_error("Unknown const declaration");
+                throw std::runtime_error("Unknown var declaration");
             }
         }
 
@@ -176,7 +178,7 @@ std::unique_ptr<VarNode> Parser::parseVarNode() {
             } else if (dynamic_cast<Boolean*>(node->value.get())) {
                 node->type = std::make_unique<BoolType>();
             } else {
-                throw std::runtime_error("Unhandled const type");
+                throw std::runtime_error("Unhandled var type");
             }
         }
 
@@ -185,44 +187,93 @@ std::unique_ptr<VarNode> Parser::parseVarNode() {
         }
 
     } else {
+        logger console;
+//        console.log(currentToken.Literal);
         getNextToken();
         if (currentTokenIs(LPAREN)) {
             getNextToken();
             node->holdsMultipleValues = true;
+
             while (currentTokenIs(IDENTIFIER)) {
+//                console.log(999);
                 auto newNode = std::make_unique<VarNode>();
                 newNode->name = parseIdentifier();
                 getNextToken();
-                if (tokenTypeIsTypeNode(currentToken.Type)) {
+                if (currentTokenIs(LBRACKET)) {
                     newNode->type = parseType();
-                    getNextToken();
-                }
-                if(currentTokenIs(ASSIGN)) {
-                    getNextToken();
-                    newNode->value = parseRHValue(LOWEST);
-                    if (!newNode->type) {
-                        if (dynamic_cast<Integer*>(newNode->value.get())) {
-                            newNode->type = std::make_unique<IntegerType>();
-                        } else if (dynamic_cast<String*>(newNode->value.get())) {
-                            newNode->type = std::make_unique<StringType>();
-                        } else if (dynamic_cast<Boolean*>(newNode->value.get())) {
-                            newNode->type = std::make_unique<BoolType>();
-                        } else {
-                            throw std::runtime_error("Unhandled const type");
-                        }
+//                    console.log(currentToken.Literal);
+                    if (checkNextTokenAndAdvance(ASSIGN)) {
+                        getNextToken();
+                        newNode->value = std::move(parseArray());
+                        node->multipleValues.push_back(std::move(newNode));
+                        getNextToken();
+                    } else {
+                        newNode->value = std::make_unique<Array>();
+                        newNode->value->holdsValue = false;
+                        node->multipleValues.push_back(std::move(newNode));
                     }
-                    node->multipleValues.push_back(std::move(newNode));
-                    getNextToken();
+
                 } else {
-                    newNode->value = std::make_unique<Integer>();
-                    newNode->value->holdsValue = false;
-                    node->multipleValues.push_back(std::move(newNode));
+                    // Parsing non - arrays
+                    logger console;
+//                    console.log(currentToken.Type);
+                    if (tokenTypeIsTypeNode(currentToken.Type)) {
+//                        console.log(999);
+                        newNode->type = parseType();
+                        getNextToken();
+                    }
+//                    console.log(currentToken.Literal);
+                    if(currentTokenIs(ASSIGN)) {
+                        getNextToken();
+                        newNode->value = parseRHValue(LOWEST);
+                        if (!newNode->type) {
+                            if (dynamic_cast<Integer*>(newNode->value.get())) {
+                                newNode->type = std::make_unique<IntegerType>();
+                            } else if (dynamic_cast<String*>(newNode->value.get())) {
+                                newNode->type = std::make_unique<StringType>();
+                            } else if (dynamic_cast<Boolean*>(newNode->value.get())) {
+                                newNode->type = std::make_unique<BoolType>();
+                            } else if (auto arr = dynamic_cast<Array*>(newNode->value.get())) {
+                                auto arrType = std::make_unique<ArrayType>();
+
+                                if (dynamic_cast<Integer*>(arr->elements[0].get())) {
+                                    arrType->subType = std::make_unique<IntegerType>();
+                                } else if (dynamic_cast<String*>(arr->elements[0].get())) {
+                                    arrType->subType = std::make_unique<StringType>();
+                                } else if (dynamic_cast<Boolean*>(arr->elements[0].get())) {
+                                    arrType->subType = std::make_unique<BoolType>();
+                                }
+
+                                newNode->type = std::move(arrType);
+//                                console.log(currentToken.Literal);
+                            } else {
+                                throw std::runtime_error("Unhandled var type");
+                            }
+                        }
+                        getNextToken();
+
+                    } else {
+
+                        newNode->value = std::make_unique<Integer>();
+                        newNode->value->holdsValue = false;
+                        node->multipleValues.push_back(std::move(newNode));
+                    }
+
                 }
+
+                node->multipleValues.push_back(std::move(newNode));
+//                console.log(currentToken.Literal);
+//                console.log(currentToken.Literal);F
+//                console.log(123);
             }
+            getNextToken();
+//            console.log(currentToken.Literal);
         } else {
             // TODO: add array support;
         }
     }
+
+//    console.log(currentToken.Literal);
 
     if (nextTokenIs(SEMICOLON)) {
         getNextToken();
@@ -275,6 +326,9 @@ std::unique_ptr<Node> Parser::parseRHValue(const int &precedence) {
         leftExp = std::unique_ptr<Node>(infix(std::move(leftExp)));
     };
 
+    logger console;
+//    console.log(currentToken.Literal);
+//    console.log(123);
     return leftExp;
 }
 
@@ -559,6 +613,8 @@ std::unique_ptr<TypeNode> Parser::parseType() {
         getNextToken();
         getNextToken();
         getNextToken();
+        logger console;
+//        console.log(currentToken.Literal);
         auto type = parseType();
         return std::make_unique<ArrayType>(std::move(type));
     } else if (currentToken.Type == STRING_TYPE) {

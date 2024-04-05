@@ -39,6 +39,7 @@ struct BoolType : public TypeNode {
 struct ArrayType : public TypeNode {
     std::unique_ptr<TypeNode> subType;
     ArrayType(std::unique_ptr<TypeNode> type) : subType(std::move(type)) {};
+    ArrayType() {};
     TokenType getType() override  {return ARRAY_TYPE;}
     TokenType getSubType() override  {return subType->getType();}
 };
@@ -225,6 +226,7 @@ struct Array : public Node {
     int size;
     Array(Token& token) : token(token) {};
     Array(Token& token, std::unique_ptr<TypeNode> type) : token(token), type(std::move(type)) {};
+    Array() {};
 
     std::string string() override;
     std::string testString() override;
