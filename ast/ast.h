@@ -106,6 +106,21 @@ struct Boolean : public Node {
     inline std::string testString() override { return "Boolean(" + token.Literal + ")"; }
 };
 
+struct Declaration : public Node {
+    Token token;
+    std::unique_ptr<Identifier> name;
+    std::unique_ptr<Node> value;
+    std::vector<std::unique_ptr<Declaration>> multipleValues;
+    std::unique_ptr<TypeNode> type;
+    bool isConstant = false;
+
+    Declaration(Token &token) : token(token) {};
+    Declaration() {};
+
+    inline std::string string() override {return token.Literal;}
+    std::string testString() override {return token.Literal;}
+};
+
 struct ConstNode : public Node {
     Token token;
     std::unique_ptr<Identifier> name;

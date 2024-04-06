@@ -25,6 +25,7 @@ enum Precedence {
 extern std::unordered_map<TokenType, int> precedences;
 using prefixParseFn = std::function<std::unique_ptr<Node>()>;
 using infixParseFn = std::function<std::unique_ptr<Node>(std::unique_ptr<Node>)>;
+enum DeclarationType { VAR_DECL, CONST_DECL };
 
 bool startsWithType(const std::string& str);
 
@@ -76,6 +77,7 @@ private:
     std::unique_ptr<Array> parseArray();
     std::unique_ptr<Node> parseIndex(std::unique_ptr<Node> left);
     std::unique_ptr<TypeNode> parseType();
+    std::unique_ptr<Node> parseDeclarationNode(DeclarationType declType);
 };
 
 #endif //GO_TO_TS_SIMPLE_COMPILER_PARSER_H

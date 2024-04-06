@@ -27,8 +27,8 @@ public:
 
     void compile(const std::unique_ptr<Node>& node);
 
-    void emitVar(const VarNode* node);
-    void emitConst(const ConstNode* node);
+    void emitVar(const Declaration* node);
+    void emitConst(const Declaration* node);
 };
 
 #endif //GO_TO_TS_SIMPLE_COMPILER_COMPILER_H

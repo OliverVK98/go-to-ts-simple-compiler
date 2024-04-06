@@ -7,35 +7,41 @@
 
 
 std::unordered_map<TokenType , std::string> tokenTypeToStringTypeMap = {
-        {INT_TYPE, "int"},
+        {INT_TYPE, "number"},
         {STRING_TYPE, "string"},
         {BOOL_TYPE, "boolean"},
 };
 
 void Compiler::compile(const std::unique_ptr<Node>& node) {
 
-    logger console;
-//    console.log(123);
-
     if (auto program = dynamic_cast<Program*>(node.get())) {
         for (const auto& statement : program->nodes) {
             compile(statement);
         }
-    } else if (auto varStmt = dynamic_cast<VarNode*>(node.get())) {
-        emitVar(varStmt);
-    } else if (auto constStmt = dynamic_cast<ConstNode*>(node.get())) {
-        emitConst(constStmt);
+    }
+//    else if (auto varStmt = dynamic_cast<VarNode*>(node.get())) {
+//        emitVar(varStmt);
+//    }
+//    else if (auto constStmt = dynamic_cast<ConstNode*>(node.get())) {
+//        emitConst(constStmt);
+//    }
+    else if (auto declStmt = dynamic_cast<Declaration*>(node.get())) {
+        if (declStmt->isConstant) {
+            emitConst(declStmt);
+        } else {
+            emitVar(declStmt);
+        }
     } else {
         throw std::runtime_error("Unhandled node subType in compilation.");
     }
 }
 
-void Compiler::emitVar(const VarNode* node) {
+void Compiler::emitVar(const Declaration* node) {
     if (!node) return;
 
     if (node->holdsMultipleValues) {
         for (const auto & value : node->multipleValues) {
-            auto varStmt = dynamic_cast<VarNode*>(value.get());
+            auto varStmt = dynamic_cast<Declaration*>(value.get());
             emitVar(varStmt);
         }
         return;
@@ -60,12 +66,12 @@ void Compiler::emitVar(const VarNode* node) {
     }
 }
 
-void Compiler::emitConst(const ConstNode *node) {
+void Compiler::emitConst(const Declaration *node) {
     if (!node) return;
 
     if (node->holdsMultipleValues) {
         for (const auto & value : node->multipleValues) {
-            auto constStmt = dynamic_cast<ConstNode*>(value.get());
+            auto constStmt = dynamic_cast<Declaration*>(value.get());
                 emitConst(constStmt);
         }
         return;

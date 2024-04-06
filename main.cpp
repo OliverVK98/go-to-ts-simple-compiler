@@ -14,6 +14,40 @@ const (
     FalseFlag = false
 )
 
+const a = 5
+const b bool = false
+
+var (
+    explicitInt int = 10
+    implicitInt = 20
+    noValueInt int
+
+    explicitBool bool = true
+    explicitString string = "explicit"
+
+    explicitArray [5]int = [5]int{1, 2, 3, 4, 5}
+    implicitArray = [5]int{6, 7, 8, 9, 10}
+    noValueArray [5]int
+)
+
+var intVar int = 5
+var boolVar = false
+var stringVar string = "hello"
+var uninitString string
+
+var boolArrayVar [2]bool = [2]bool{true, false}
+var arr = [5]int{1, 2, 3, 4, 5}
+var uninitIntArray [3]int
+)";
+std::string testCase3 = R"(
+const (
+    Name string = "Go"
+    Version = "1.16"
+    ReleasedYear int = 2009
+    TrueFlag bool = true
+    FalseFlag = false
+)
+
 const a = 5;
 const b bool = false;
 
@@ -39,51 +73,7 @@ var boolArrayVar [2]bool = [2]bool{true, false}
 var arr = [5]int{1, 2, 3, 4, 5}
 var uninitIntArray [3]int
 
-)";
-std::string testCase3 = R"(
-const (
-    Name string = "Go"
-    Version = "1.16"
-    ReleasedYear int = 2009
-    TrueFlag bool = true
-    FalseFlag = false
-)
-
-var (
-    explicitInt int = 10
-    implicitInt = 20
-    noValueInt int
-
-    explicitBool bool = true
-    implicitBool = false
-    noValueBool bool
-
-    explicitString string = "explicit"
-    implicitString = "implicit"
-    noValueString string
-
-    explicitArray [5]int = [5]int{1, 2, 3, 4, 5}
-    implicitArray = [5]int{6, 7, 8, 9, 10}
-    noValueArray [5]int
-)
-
-var intVar int = 5
-var intVar = 10
-var boolVar bool = true
-var boolVar = false
-var stringVar string = "hello"
-var stringVar = "world"
-
-var intArrayVar [5]int = [5]int{1, 2, 3, 4, 5}
-var boolArrayVar [2]bool = [2]bool{true, false}
-var stringArrayVar [3]string = [3]string{"a", "b", "c"}
-var arr [5]int = [5]int{1, 2, 3, 4, 5}
-var arr = [5]int{1, 2, 3, 4, 5}
-
-var uninitInt int
-var uninitBool bool
-var uninitString string
-var uninitIntArray [3]int
+const 1 var = 1;
 )";
 
 std::unordered_map<std::string, std::string> testCases = {
@@ -142,7 +132,7 @@ void compileTestCase() {
     Lexer newLexer(testCase);
     Parser newParser{&newLexer};
     auto output = newParser.parseProgram();
-    Compiler compiler("./compilerTest.txt");
+    Compiler compiler("./output.ts");
     compiler.compile(std::move(output));
 }
 
