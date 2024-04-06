@@ -135,9 +135,6 @@ Token Lexer::nextToken() {
         case ')':
             tok = newToken(RPAREN, ch);
             break;
-        case ';':
-            tok = newToken(SEMICOLON, ch);
-            break;
         case ',':
             tok = newToken(COMMA, ch);
             break;

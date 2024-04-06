@@ -25,7 +25,7 @@ enum Precedence {
 extern std::unordered_map<TokenType, int> precedences;
 using prefixParseFn = std::function<std::unique_ptr<Node>()>;
 using infixParseFn = std::function<std::unique_ptr<Node>(std::unique_ptr<Node>)>;
-enum DeclarationType { VAR_DECL, CONST_DECL };
+enum DeclarationType { VAR_DECL, CONST_DECL, SHORT_DECL };
 
 bool startsWithType(const std::string& str);
 
@@ -57,11 +57,9 @@ private:
 
     std::unique_ptr<Node> parseRHValue(const int &precedence);
     std::unique_ptr<Node> parseNode();
-    std::unique_ptr<ConstNode> parseConstNode();
-    std::unique_ptr<VarNode> parseVarNode();
     std::unique_ptr<ReturnNode> parseReturnNode();
-    std::unique_ptr<Node> parseRHValueNode();
-    inline std::unique_ptr<Identifier> parseIdentifier() { return std::make_unique<Identifier>(currentToken, currentToken.Literal); }
+    std::unique_ptr<Node> parseRValueNode();
+    std::unique_ptr<Node> parseIdentifier();
     std::unique_ptr<Integer> parseIntegerLiteral();
     inline std::unique_ptr<String> parseStringLiteral() { return std::make_unique<String>(currentToken, currentToken.Literal); }
     inline std::unique_ptr<Boolean> parseBoolean() { return std::make_unique<Boolean>(currentToken, currentTokenIs(TRUE)); }
@@ -76,8 +74,14 @@ private:
     std::vector<std::unique_ptr<Node>> parseNodeList(TokenType end);
     std::unique_ptr<Array> parseArray();
     std::unique_ptr<Node> parseIndex(std::unique_ptr<Node> left);
-    std::unique_ptr<TypeNode> parseType();
+
+    // Parsing variables and their types
     std::unique_ptr<Node> parseDeclarationNode(DeclarationType declType);
+    std::unique_ptr<Declaration> parseShortDeclarationNode(std::unique_ptr<Declaration>& node);
+    std::unique_ptr<Declaration> parseGroupedDeclarationNode(std::unique_ptr<Declaration>& node);
+    std::unique_ptr<Declaration> parseExplicitDeclarationNode(std::unique_ptr<Declaration>& node);
+    std::unique_ptr<TypeNode> parseType();
+    void parseImplicitVariableType(std::unique_ptr<Declaration>& node);
 };
 
 #endif //GO_TO_TS_SIMPLE_COMPILER_PARSER_H

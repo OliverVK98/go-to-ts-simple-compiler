@@ -108,7 +108,7 @@ struct Boolean : public Node {
 
 struct Declaration : public Node {
     Token token;
-    std::unique_ptr<Identifier> name;
+    std::unique_ptr<Node> name;
     std::unique_ptr<Node> value;
     std::vector<std::unique_ptr<Declaration>> multipleValues;
     std::unique_ptr<TypeNode> type;
@@ -118,7 +118,7 @@ struct Declaration : public Node {
     Declaration() {};
 
     inline std::string string() override {return token.Literal;}
-    std::string testString() override {return token.Literal;}
+    std::string testString() override {return "Declaration: " + token.Literal;}
 };
 
 struct ConstNode : public Node {
@@ -159,11 +159,11 @@ struct ReturnNode : public Node {
     std::string testString() override;
 };
 
-struct RHValue : public Node {
+struct RValue : public Node {
     Token token;
     std::unique_ptr<Node> value;
 
-    RHValue(Token &token) : token(token) {};
+    RValue(Token &token) : token(token) {};
 
     inline std::string string() override {return token.Literal;}
     std::string testString() override;
@@ -238,7 +238,6 @@ struct Array : public Node {
     Token token;
     std::vector<std::unique_ptr<Node>> elements;
     std::unique_ptr<TypeNode> type;
-    int size;
     Array(Token& token) : token(token) {};
     Array(Token& token, std::unique_ptr<TypeNode> type) : token(token), type(std::move(type)) {};
     Array() {};

@@ -7,12 +7,13 @@
 
 #include <utility>
 
+// TODO: add factory?
+
 bool startsWithType(const std::string& str) {
     const std::string prefix = "type_";
     if (str.length() < prefix.length()) {
-        return false; // String is too short to contain the prefix
+        return false;
     }
-    // Check if the beginning of str matches prefix
     return str.substr(0, prefix.length()) == prefix;
 }
 
@@ -37,371 +38,253 @@ bool Parser::checkNextTokenAndAdvance(const TokenType& t) {
     return false;
 }
 
-//std::unique_ptr<ConstNode> Parser::parseConstNode() {
-//    auto node = std::make_unique<ConstNode>(currentToken);
-//
-//    if (checkNextTokenAndAdvance(IDENTIFIER)) {
-//        node->name = std::make_unique<Identifier>(currentToken, currentToken.Literal);
-//
-//        if (startsWithType(nextToken.Type)) {
-//            getNextToken();
-//            node->type = parseType();
-//        }
-//
-//        if (!nextTokenIs(ASSIGN)) {
-//            if (node->type) {
-//                node->value = std::make_unique<Integer>();
-//                node->value->holdsValue = false;
-//                if (nextTokenIs(SEMICOLON)) {
-//                    getNextToken();
-//                }
-//                return node;
-//            } else {
-//                throw std::runtime_error("Unknown const declaration");
-//            }
-//        }
-//
-//        getNextToken();
-//        getNextToken();
-//
-//        node->value = parseRHValue(LOWEST);
-//
-//        if (!node->type) {
-//            if (dynamic_cast<Integer*>(node->value.get())) {
-//                node->type = std::make_unique<IntegerType>();
-//            } else if (dynamic_cast<String*>(node->value.get())) {
-//                node->type = std::make_unique<StringType>();
-//            } else if (dynamic_cast<Boolean*>(node->value.get())) {
-//                node->type = std::make_unique<BoolType>();
-//            } else {
-//                throw std::runtime_error("Unhandled const type");
-//            }
-//        }
-//
-//        if (auto fl = dynamic_cast<Function*>(node->value.get())) {
-//            fl->funcName = node->name->value;
-//        }
-//
-//    } else {
-//        getNextToken();
-//        if (currentTokenIs(LPAREN)) {
-//            getNextToken();
-//            node->holdsMultipleValues = true;
-//            while (currentTokenIs(IDENTIFIER)) {
-//                auto newNode = std::make_unique<ConstNode>();
-//                newNode->name = std::move(parseIdentifier());
-//                getNextToken();
-//                if (tokenTypeIsTypeNode(currentToken.Type)) {
-//                    newNode->type = parseType();
-//                    getNextToken();
-//                }
-//                getNextToken();
-//                newNode->value = parseRHValue(LOWEST);
-//                if (!newNode->type) {
-//                    if (dynamic_cast<Integer*>(newNode->value.get())) {
-//                        newNode->type = std::make_unique<IntegerType>();
-//                    } else if (dynamic_cast<String*>(newNode->value.get())) {
-//                        newNode->type = std::make_unique<StringType>();
-//                    } else if (dynamic_cast<Boolean*>(newNode->value.get())) {
-//                        newNode->type = std::make_unique<BoolType>();
-//                    } else {
-//                        throw std::runtime_error("Unhandled const type");
-//                    }
-//                }
-//
-//                node->multipleValues.push_back(std::move(newNode));
-//                getNextToken();
-//            }
-//
-//        } else {
-//            throw std::runtime_error("Unhandled const variable declaration");
-//        }
-//    }
-//
-//    if (nextTokenIs(SEMICOLON)) {
-//        getNextToken();
-//    }
-//
-//    return node;
-//}
-
+// PARSING VARIABLES AND THEIR TYPES
 std::unique_ptr<Node> Parser::parseDeclarationNode(DeclarationType declType) {
     auto node = std::make_unique<Declaration>(currentToken);
     if (declType == CONST_DECL) node->isConstant = true;
-
-    if (checkNextTokenAndAdvance(IDENTIFIER)) {
+    if (declType == SHORT_DECL) {
+        return parseShortDeclarationNode(node);
+    } else if (checkNextTokenAndAdvance(IDENTIFIER)) {
         // Parsing non-grouped declarations
-        node->name = std::make_unique<Identifier>(currentToken, currentToken.Literal);
-
-        if(nextTokenIs(LBRACKET)) {
-            // Parsing var array types
-            if (node->isConstant) throw std::runtime_error("Constant array!");
-            getNextToken();
-            node->type = parseType();
-        } else if (startsWithType(nextToken.Type)) {
-            // Parsing explicit type decl for const/var
-            getNextToken();
-            node->type = parseType();
-        }
-
-        if (!nextTokenIs(ASSIGN)) {
-            // Parsing vars with no value and checking that they have types
-            if (node->type) {
-                node->value = std::make_unique<Integer>();
-                node->value->holdsValue = false;
-                if (nextTokenIs(SEMICOLON)) {
-                    getNextToken();
-                }
-                return node;
-            } else {
-                throw std::runtime_error("Unknown declaration");
-            }
-        }
-
-        getNextToken();
-        getNextToken();
-
-        if (currentTokenIs(LBRACKET)) {
-            // Parsing var array values
-            if (node->isConstant) throw std::runtime_error("Constant array!");
-            auto arr = parseArray();
-            node->type = std::move(arr->type);
-            node->value = std::move(arr);
-        } else {
-            // Parsing non-array const/var values
-            node->value = parseRHValue(LOWEST);
-        }
-
-        if (!node->type) {
-            // Inferring type if not explicit
-            if (dynamic_cast<Integer*>(node->value.get())) {
-                node->type = std::make_unique<IntegerType>();
-            } else if (dynamic_cast<String*>(node->value.get())) {
-                node->type = std::make_unique<StringType>();
-            } else if (dynamic_cast<Boolean*>(node->value.get())) {
-                node->type = std::make_unique<BoolType>();
-            } else {
-                throw std::runtime_error("Unhandled var type");
-            }
-        }
-
+        return parseExplicitDeclarationNode(node);
     } else if (checkNextTokenAndAdvance(LPAREN)) {
-        getNextToken();
-        node->holdsMultipleValues = true;
-
-        while (currentTokenIs(IDENTIFIER)) {
-            auto newNode = std::make_unique<Declaration>();
-            if (declType == CONST_DECL) newNode->isConstant = true;
-            newNode->name = parseIdentifier();
-            getNextToken();
-
-            if (currentTokenIs(LBRACKET)) {
-                newNode->type = parseType();
-                if (checkNextTokenAndAdvance(ASSIGN)) {
-                    getNextToken();
-                    newNode->value = std::move(parseArray());
-                    node->multipleValues.push_back(std::move(newNode));
-                    getNextToken();
-                } else {
-                    newNode->value = std::make_unique<Array>();
-                    newNode->value->holdsValue = false;
-                    node->multipleValues.push_back(std::move(newNode));
-                    getNextToken();
-                }
-
-            } else {
-                // Parsing non - arrays
-                if (tokenTypeIsTypeNode(currentToken.Type)) {
-                    newNode->type = parseType();
-                    getNextToken();
-                }
-                if(currentTokenIs(ASSIGN)) {
-                    getNextToken();
-                    newNode->value = parseRHValue(LOWEST);
-                    if (!newNode->type) {
-                        if (dynamic_cast<Integer*>(newNode->value.get())) {
-                            newNode->type = std::make_unique<IntegerType>();
-                        } else if (dynamic_cast<String*>(newNode->value.get())) {
-                            newNode->type = std::make_unique<StringType>();
-                        } else if (dynamic_cast<Boolean*>(newNode->value.get())) {
-                            newNode->type = std::make_unique<BoolType>();
-                        } else if (auto arr = dynamic_cast<Array*>(newNode->value.get())) {
-                            auto arrType = std::make_unique<ArrayType>();
-
-                            if (dynamic_cast<Integer*>(arr->elements[0].get())) {
-                                arrType->subType = std::make_unique<IntegerType>();
-                            } else if (dynamic_cast<String*>(arr->elements[0].get())) {
-                                arrType->subType = std::make_unique<StringType>();
-                            } else if (dynamic_cast<Boolean*>(arr->elements[0].get())) {
-                                arrType->subType = std::make_unique<BoolType>();
-                            }
-
-                            newNode->type = std::move(arrType);
-                        } else {
-                            throw std::runtime_error("Unhandled var type");
-                        }
-                    }
-                    getNextToken();
-
-                } else {
-                    newNode->value = std::make_unique<Integer>();
-                    newNode->value->holdsValue = false;
-                }
-
-            }
-
-            node->multipleValues.push_back(std::move(newNode));
-        }
+        return parseGroupedDeclarationNode(node);
     } else {
         throw std::runtime_error("Unknown variable declaration");
     }
+}
 
-    if (nextTokenIs(SEMICOLON)) {
+std::unique_ptr<Declaration> Parser::parseShortDeclarationNode(std::unique_ptr<Declaration> &node) {
+    node->name = std::make_unique<Identifier>(currentToken, currentToken.Literal);
+    getNextToken();
+    getNextToken();
+
+    if (currentTokenIs(LBRACKET)) {
+        auto arr = parseArray();
+        node->type = std::move(arr->type);
+        node->value = std::move(arr);
+    } else {
+        node->value = parseRHValue(LOWEST);
+    }
+
+    if (!node->type) {
+        parseImplicitVariableType(node);
+    }
+
+    return std::move(node);
+}
+
+std::unique_ptr<Declaration> Parser::parseGroupedDeclarationNode(std::unique_ptr<Declaration> &node) {
+    getNextToken();
+    node->holdsMultipleValues = true;
+
+    while (currentTokenIs(IDENTIFIER)) {
+        auto newNode = std::make_unique<Declaration>();
+        newNode->name = parseIdentifier();
+        getNextToken();
+
+        if (currentTokenIs(LBRACKET)) {
+            newNode->type = parseType();
+            if (checkNextTokenAndAdvance(ASSIGN)) {
+                getNextToken();
+                newNode->value = std::move(parseArray());
+                node->multipleValues.push_back(std::move(newNode));
+                getNextToken();
+            } else {
+                newNode->value = std::make_unique<Array>();
+                newNode->value->holdsValue = false;
+                node->multipleValues.push_back(std::move(newNode));
+                getNextToken();
+            }
+
+        } else {
+            if (tokenTypeIsTypeNode(currentToken.Type)) {
+                newNode->type = parseType();
+                getNextToken();
+            }
+            if(currentTokenIs(ASSIGN)) {
+                getNextToken();
+                newNode->value = parseRHValue(LOWEST);
+                if (!newNode->type) {
+                    parseImplicitVariableType(newNode);
+                }
+                getNextToken();
+
+            } else {
+                newNode->value = std::make_unique<Integer>();
+                newNode->value->holdsValue = false;
+            }
+
+        }
+
+        node->multipleValues.push_back(std::move(newNode));
+    }
+    return std::move(node);
+}
+
+std::unique_ptr<Declaration> Parser::parseExplicitDeclarationNode(std::unique_ptr<Declaration> &node) {
+    node->name = std::make_unique<Identifier>(currentToken, currentToken.Literal);
+
+    if(nextTokenIs(LBRACKET)) {
+        if (node->isConstant) throw std::runtime_error("Constant array!");
+        getNextToken();
+        node->type = parseType();
+    } else if (startsWithType(nextToken.Type)) {
+        getNextToken();
+        node->type = parseType();
+    }
+
+    if (!nextTokenIs(ASSIGN)) {
+        if (node->type) {
+            node->value = std::make_unique<Integer>();
+            node->value->holdsValue = false;
+            return std::move(node);
+        } else {
+            throw std::runtime_error("Unknown declaration");
+        }
+    }
+
+    getNextToken();
+    getNextToken();
+
+    if (currentTokenIs(LBRACKET)) {
+        if (node->isConstant) throw std::runtime_error("Constant array!");
+        auto arr = parseArray();
+        node->type = std::move(arr->type);
+        node->value = std::move(arr);
+    } else {
+        node->value = parseRHValue(LOWEST);
+    }
+
+    if (!node->type) {
+        parseImplicitVariableType(node);
+    }
+
+    return std::move(node);
+}
+
+
+void Parser::parseImplicitVariableType(std::unique_ptr<Declaration> &node) {
+    if (dynamic_cast<Integer*>(node->value.get())) {
+        node->type = std::make_unique<IntegerType>();
+    } else if (dynamic_cast<String*>(node->value.get())) {
+        node->type = std::make_unique<StringType>();
+    } else if (dynamic_cast<Boolean*>(node->value.get())) {
+        node->type = std::make_unique<BoolType>();
+    } else if (auto arr = dynamic_cast<Array*>(node->value.get())) {
+        auto arrType = std::make_unique<ArrayType>();
+        if (dynamic_cast<Integer*>(arr->elements[0].get())) {
+            arrType->subType = std::make_unique<IntegerType>();
+        } else if (dynamic_cast<String*>(arr->elements[0].get())) {
+            arrType->subType = std::make_unique<StringType>();
+        } else if (dynamic_cast<Boolean*>(arr->elements[0].get())) {
+            arrType->subType = std::make_unique<BoolType>();
+        }
+
+        node->type = std::move(arrType);
+    } else {
+        throw std::runtime_error("Unhandled implicit variable type");
+    }
+}
+
+std::unique_ptr<TypeNode> Parser::parseType() {
+    if (currentToken.Literal == LBRACKET) {
+        getNextToken();
+        getNextToken();
+        getNextToken();
+        auto type = parseType();
+        return std::make_unique<ArrayType>(std::move(type));
+    } else if (currentToken.Type == STRING_TYPE) {
+        return std::make_unique<StringType>();
+    } else if (currentToken.Type == BOOL_TYPE) {
+        return std::make_unique<BoolType>();
+    } else if (currentToken.Type == INT_TYPE) {
+        return std::make_unique<IntegerType>();
+    } else {
+        throw std::runtime_error("incorrect subType: " + currentToken.Literal);
+    }
+}
+
+
+// PARSING FUNCTION
+std::unique_ptr<Function> Parser::parseFunctionDeclaration() {
+    auto func = std::make_unique<Function>(currentToken);
+
+    if(!nextTokenIs(IDENTIFIER)) {
+        throw std::runtime_error("Unhandled function declaration: function name is missing");
+    }
+
+    getNextToken();
+
+    if (currentTokenIs(IDENTIFIER)) {
+        func->funcName = parseIdentifier()->string();
         getNextToken();
     }
 
-    return node;
+    func->parameters = parseFunctionParameters();
+
+    if(!checkNextTokenAndAdvance(LBRACE)) {
+        return nullptr;
+    }
+
+    func->body = parseBlockNode();
+
+    return func;
 }
 
-//std::unique_ptr<VarNode> Parser::parseVarNode() {
-//    auto node = std::make_unique<VarNode>(currentToken);
-//    if (checkNextTokenAndAdvance(IDENTIFIER)) {
-//        node->name = std::make_unique<Identifier>(currentToken, currentToken.Literal);
-//
-//        if(nextTokenIs(LBRACKET)) {
-//            // Parsing var arrays
-//            getNextToken();
-//            node->type = parseType();
-//        } else if (startsWithType(nextToken.Type)) {
-//            // Parsing explicit type decl
-//            getNextToken();
-//            node->type = parseType();
-//        }
-//
-//        if (!nextTokenIs(ASSIGN)) {
-//            // Parsing vars with no value
-//            if (node->type) {
-//                node->value = std::make_unique<Integer>();
-//                node->value->holdsValue = false;
-//                if (nextTokenIs(SEMICOLON)) {
-//                    getNextToken();
-//                }
-//                return node;
-//            } else {
-//                throw std::runtime_error("Unknown var declaration");
-//            }
-//        }
-//
-//        getNextToken();
-//        getNextToken();
-//
-//        if (currentTokenIs(LBRACKET)) {
-//            // Parsing array values
-//            auto arr = parseArray();
-//            node->type = std::move(arr->type);
-//            node->value = std::move(arr);
-//        } else {
-//            // Parsing non-array values
-//            node->value = parseRHValue(LOWEST);
-//        }
-//
-//        if (!node->type) {
-//            // Inferring type if not explicit
-//            if (dynamic_cast<Integer*>(node->value.get())) {
-//                node->type = std::make_unique<IntegerType>();
-//            } else if (dynamic_cast<String*>(node->value.get())) {
-//                node->type = std::make_unique<StringType>();
-//            } else if (dynamic_cast<Boolean*>(node->value.get())) {
-//                node->type = std::make_unique<BoolType>();
-//            } else {
-//                throw std::runtime_error("Unhandled var type");
-//            }
-//        }
-//
-//        if (auto fl = dynamic_cast<Function*>(node->value.get())) {
-//            fl->funcName = node->name->value;
-//        }
-//
-//    } else {
-//        getNextToken();
-//        if (currentTokenIs(LPAREN)) {
-//            getNextToken();
-//            node->holdsMultipleValues = true;
-//
-//            while (currentTokenIs(IDENTIFIER)) {
-//                auto newNode = std::make_unique<VarNode>();
-//                newNode->name = parseIdentifier();
-//                getNextToken();
-//                if (currentTokenIs(LBRACKET)) {
-//                    newNode->type = parseType();
-//                    if (checkNextTokenAndAdvance(ASSIGN)) {
-//                        getNextToken();
-//                        newNode->value = std::move(parseArray());
-//                        node->multipleValues.push_back(std::move(newNode));
-//                        getNextToken();
-//                    } else {
-//                        newNode->value = std::make_unique<Array>();
-//                        newNode->value->holdsValue = false;
-//                        node->multipleValues.push_back(std::move(newNode));
-//                    }
-//
-//                } else {
-//                    // Parsing non - arrays
-//                    if (tokenTypeIsTypeNode(currentToken.Type)) {
-//                        newNode->type = parseType();
-//                        getNextToken();
-//                    }
-//                    if(currentTokenIs(ASSIGN)) {
-//                        getNextToken();
-//                        newNode->value = parseRHValue(LOWEST);
-//                        if (!newNode->type) {
-//                            if (dynamic_cast<Integer*>(newNode->value.get())) {
-//                                newNode->type = std::make_unique<IntegerType>();
-//                            } else if (dynamic_cast<String*>(newNode->value.get())) {
-//                                newNode->type = std::make_unique<StringType>();
-//                            } else if (dynamic_cast<Boolean*>(newNode->value.get())) {
-//                                newNode->type = std::make_unique<BoolType>();
-//                            } else if (auto arr = dynamic_cast<Array*>(newNode->value.get())) {
-//                                auto arrType = std::make_unique<ArrayType>();
-//
-//                                if (dynamic_cast<Integer*>(arr->elements[0].get())) {
-//                                    arrType->subType = std::make_unique<IntegerType>();
-//                                } else if (dynamic_cast<String*>(arr->elements[0].get())) {
-//                                    arrType->subType = std::make_unique<StringType>();
-//                                } else if (dynamic_cast<Boolean*>(arr->elements[0].get())) {
-//                                    arrType->subType = std::make_unique<BoolType>();
-//                                }
-//
-//                                newNode->type = std::move(arrType);
-//                            } else {
-//                                throw std::runtime_error("Unhandled var type");
-//                            }
-//                        }
-//                        getNextToken();
-//
-//                    } else {
-//
-//                        newNode->value = std::make_unique<Integer>();
-//                        newNode->value->holdsValue = false;
-//                        node->multipleValues.push_back(std::move(newNode));
-//                    }
-//
-//                }
-//
-//                node->multipleValues.push_back(std::move(newNode));
-//            }
-//            getNextToken();
-//        } else {
-//            // TODO: add array support;
-//        }
-//    }
-//
-//    if (nextTokenIs(SEMICOLON)) {
-//        getNextToken();
-//    }
-//    return node;
-//}
+std::unique_ptr<CodeBlock> Parser::parseBlockNode() {
+    auto block = std::make_unique<CodeBlock>(currentToken);
+    block->nodes = std::move(std::vector<std::unique_ptr<Node>>{});
 
+    getNextToken();
+
+    while (!currentTokenIs(RBRACE) && !currentTokenIs(END_OF_FILE)) {
+        auto node = parseNode();
+        if (node) {
+            block->nodes.emplace_back(std::move(node));
+        }
+        getNextToken();
+    }
+
+    return block;
+}
+
+std::vector<std::unique_ptr<Identifier>> Parser::parseFunctionParameters() {
+    auto params = std::vector<std::unique_ptr<Identifier>>{};
+
+    if (nextTokenIs(RPAREN)) {
+        getNextToken();
+        return params;
+    }
+
+    getNextToken();
+
+    auto param = std::make_unique<Identifier>(currentToken, currentToken.Literal);
+    params.emplace_back(std::move(param));
+
+    while (nextTokenIs(COMMA)) {
+        getNextToken();
+        getNextToken();
+        auto newParam = std::make_unique<Identifier>(currentToken, currentToken.Literal);
+        params.emplace_back(std::move(newParam));
+    }
+
+    if (!checkNextTokenAndAdvance(RPAREN)) {
+        return std::vector<std::unique_ptr<Identifier>>{};
+    }
+
+    return params;
+}
+
+std::unique_ptr<FunctionCall> Parser::parseFunctionCall(std::unique_ptr<Node> func) {
+    auto funcCall = std::make_unique<FunctionCall>(currentToken, std::move(func));
+    funcCall->args = std::move(parseNodeList(RPAREN));
+
+    return funcCall;
+}
+
+
+//
 std::unique_ptr<ReturnNode> Parser::parseReturnNode() {
     auto node = std::make_unique<ReturnNode>(currentToken);
 
@@ -409,21 +292,13 @@ std::unique_ptr<ReturnNode> Parser::parseReturnNode() {
 
     node->value = parseRHValue(LOWEST);
 
-    if (nextTokenIs(SEMICOLON)) {
-        getNextToken();
-    }
-
     return node;
 }
 
-std::unique_ptr<Node> Parser::parseRHValueNode() {
-    auto node = std::make_unique<RHValue>(currentToken);
+std::unique_ptr<Node> Parser::parseRValueNode() {
+    auto node = std::make_unique<RValue>(currentToken);
 
     node->value = parseRHValue(LOWEST);
-
-    if (nextTokenIs(SEMICOLON)) {
-        getNextToken();
-    }
 
     return node;
 }
@@ -437,7 +312,7 @@ std::unique_ptr<Node> Parser::parseRHValue(const int &precedence) {
 
     auto leftExp = prefix();
 
-    while (!nextTokenIs(SEMICOLON) && precedence < peekPrecedence()) {
+    while (precedence < peekPrecedence()) {
         auto infix = infixParseFns[nextToken.Type];
         if (!infix) {
             return nullptr;
@@ -447,7 +322,6 @@ std::unique_ptr<Node> Parser::parseRHValue(const int &precedence) {
         leftExp = std::unique_ptr<Node>(infix(std::move(leftExp)));
     };
 
-    logger console;
     return leftExp;
 }
 
@@ -502,7 +376,7 @@ std::unique_ptr<Node> Parser::parseNode() {
     } else if (currentToken.Type == FUNCTION) {
         return parseFunctionDeclaration();
     } else {
-        return parseRHValueNode();
+        return parseRValueNode();
     }
 }
 
@@ -527,75 +401,6 @@ std::unique_ptr<Infix> Parser::parseInfixNode(std::unique_ptr<Node> left) {
     getNextToken();
     node->right = parseRHValue(precedence);
     return node;
-}
-
-std::unique_ptr<CodeBlock> Parser::parseBlockNode() {
-    auto block = std::make_unique<CodeBlock>(currentToken);
-    block->nodes = std::move(std::vector<std::unique_ptr<Node>>{});
-
-    getNextToken();
-
-    while (!currentTokenIs(RBRACE) && !currentTokenIs(END_OF_FILE)) {
-        auto node = parseNode();
-        if (node) {
-            block->nodes.emplace_back(std::move(node));
-        }
-        getNextToken();
-    }
-
-    return block;
-}
-
-std::unique_ptr<Function> Parser::parseFunctionDeclaration() {
-    auto func = std::make_unique<Function>(currentToken);
-
-    if(!nextTokenIs(LPAREN) && !nextTokenIs(IDENTIFIER)) {
-        return nullptr;
-    }
-
-    getNextToken();
-
-    if (currentTokenIs(IDENTIFIER)) {
-        func->funcName = parseIdentifier()->testString();
-        getNextToken();
-    }
-
-    func->parameters = parseFunctionParameters();
-
-    if(!checkNextTokenAndAdvance(LBRACE)) {
-        return nullptr;
-    }
-
-    func->body = parseBlockNode();
-
-    return func;
-}
-
-std::vector<std::unique_ptr<Identifier>> Parser::parseFunctionParameters() {
-    auto params = std::vector<std::unique_ptr<Identifier>>{};
-
-    if (nextTokenIs(RPAREN)) {
-        getNextToken();
-        return params;
-    }
-
-    getNextToken();
-
-    auto param = std::make_unique<Identifier>(currentToken, currentToken.Literal);
-    params.emplace_back(std::move(param));
-
-    while (nextTokenIs(COMMA)) {
-        getNextToken();
-        getNextToken();
-        auto newParam = std::make_unique<Identifier>(currentToken, currentToken.Literal);
-        params.emplace_back(std::move(newParam));
-    }
-
-    if (!checkNextTokenAndAdvance(RPAREN)) {
-        return std::vector<std::unique_ptr<Identifier>>{};
-    }
-
-    return params;
 }
 
 std::unique_ptr<Node> Parser::parseGroupedNodes() {
@@ -632,13 +437,6 @@ std::unique_ptr<IfElseNode> Parser::parseIfNode() {
     return ifNode;
 }
 
-std::unique_ptr<FunctionCall> Parser::parseFunctionCall(std::unique_ptr<Node> func) {
-    auto funcCall = std::make_unique<FunctionCall>(currentToken, std::move(func));
-    funcCall->args = std::move(parseNodeList(RPAREN));
-
-    return funcCall;
-}
-
 std::vector<std::unique_ptr<Node>> Parser::parseNodeList(TokenType end) {
     auto list = std::vector<std::unique_ptr<Node>>{};
     if (nextTokenIs(end)) {
@@ -666,15 +464,14 @@ std::vector<std::unique_ptr<Node>> Parser::parseNodeList(TokenType end) {
 
 std::unique_ptr<Array> Parser::parseArray() {
     auto array = std::make_unique<Array>(currentToken);
-    if (nextToken.Type == VARIADIC) {
-        array->size = -1;
-    } else {
-        auto intSize = std::stoi(nextToken.Literal);
-        array->size = intSize;
+    if (nextToken.Type == VARIADIC || nextToken.Type == INT) {
+        getNextToken();
+        getNextToken();
+        getNextToken();
+    } else if (nextToken.Type == RBRACKET) {
+        getNextToken();
+        getNextToken();
     }
-    getNextToken();
-    getNextToken();
-    getNextToken();
     auto arrType = std::make_unique<ArrayType>(std::move(parseType()));
     array->type = std::move(arrType);
     getNextToken();
@@ -727,21 +524,10 @@ Parser::Parser(Lexer* l) : lexer(l) {
     getNextToken();
 }
 
-std::unique_ptr<TypeNode> Parser::parseType() {
-    if (currentToken.Literal == LBRACKET) {
-        getNextToken();
-        getNextToken();
-        getNextToken();
-        auto type = parseType();
-        return std::make_unique<ArrayType>(std::move(type));
-    } else if (currentToken.Type == STRING_TYPE) {
-        return std::make_unique<StringType>();
-    } else if (currentToken.Type == BOOL_TYPE) {
-        return std::make_unique<BoolType>();
-    } else if (currentToken.Type == INT_TYPE) {
-        return std::make_unique<IntegerType>();
-    } else {
-        throw std::runtime_error("incorrect subType: " + currentToken.Literal);
+std::unique_ptr<Node> Parser::parseIdentifier() {
+    if (nextToken.Type == DECLARE) {
+        return parseDeclarationNode(SHORT_DECL);
     }
-
+    return std::make_unique<Identifier>(currentToken, currentToken.Literal);
 }
+

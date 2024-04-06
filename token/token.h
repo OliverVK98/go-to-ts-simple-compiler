@@ -51,7 +51,6 @@ const TokenType NOT_EQ = "!=";
 const TokenType LESS_THAN = "<";
 const TokenType GREATER_THAN = ">";
 const TokenType COMMA = ",";
-const TokenType SEMICOLON = ";";
 const TokenType LPAREN = "(";
 const TokenType RPAREN = ")";
 const TokenType LBRACE = "{";

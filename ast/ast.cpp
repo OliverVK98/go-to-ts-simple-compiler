@@ -67,8 +67,8 @@ std::string Infix::testString() {
     return ss.str();
 }
 
-std::string RHValue::testString() {
-    if (value) { return "RHValue(" + value->testString() + ")"; }
+std::string RValue::testString() {
+    if (value) { return "RValue(" + value->testString() + ")"; }
     return "";
 }
 

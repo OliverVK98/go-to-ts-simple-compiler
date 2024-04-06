@@ -18,14 +18,11 @@ void Compiler::compile(const std::unique_ptr<Node>& node) {
         for (const auto& statement : program->nodes) {
             compile(statement);
         }
-    }
-//    else if (auto varStmt = dynamic_cast<VarNode*>(node.get())) {
-//        emitVar(varStmt);
-//    }
-//    else if (auto constStmt = dynamic_cast<ConstNode*>(node.get())) {
-//        emitConst(constStmt);
-//    }
-    else if (auto declStmt = dynamic_cast<Declaration*>(node.get())) {
+    } else if (auto rvalue = dynamic_cast<RValue*>(node.get())) {
+        if (auto declStmt = dynamic_cast<Declaration*>(rvalue->value.get())) {
+            emitVar(declStmt);
+        }
+    } else if (auto declStmt = dynamic_cast<Declaration*>(node.get())) {
         if (declStmt->isConstant) {
             emitConst(declStmt);
         } else {
@@ -49,13 +46,13 @@ void Compiler::emitVar(const Declaration* node) {
 
     if (node->type->getType() == INT_TYPE || node->type->getType() == BOOL_TYPE || node->type->getType() == STRING_TYPE) {
         if (node->value->holdsValue) {
-            outputStream << "let " << node->name->value << ": " << tokenTypeToStringTypeMap[node->type->getType()] << " = " << node->value->string() << ";\n";
+            outputStream << "let " << node->name->string() << ": " << tokenTypeToStringTypeMap[node->type->getType()] << " = " << node->value->string() << ";\n";
         } else {
-            outputStream << "let " << node->name->value << ": " << tokenTypeToStringTypeMap[node->type->getType()] << ";\n";
+            outputStream << "let " << node->name->string() << ": " << tokenTypeToStringTypeMap[node->type->getType()] << ";\n";
         }
     } else if (node->type->getType() == ARRAY_TYPE) {
         std::string arrType = node->type->getSubType();
-        outputStream << "let " << node->name->value <<": " << tokenTypeToStringTypeMap[arrType] << "[]";
+        outputStream << "let " << node->name->string() <<": " << tokenTypeToStringTypeMap[arrType] << "[]";
 
         if (node->value->holdsValue) {
             outputStream << " = " << node->value->string();
@@ -79,9 +76,9 @@ void Compiler::emitConst(const Declaration *node) {
 
     if (node->type->getType() == INT_TYPE || node->type->getType() == BOOL_TYPE || node->type->getType() == STRING_TYPE) {
         if (node->value->holdsValue) {
-            outputStream << "const " << node->name->value << ": " << tokenTypeToStringTypeMap[node->type->getType()] << " = " << node->value->string() << ";\n";
+            outputStream << "const " << node->name->string() << ": " << tokenTypeToStringTypeMap[node->type->getType()] << " = " << node->value->string() << ";\n";
         } else {
-            outputStream << "const " << node->name->value << ": " << tokenTypeToStringTypeMap[node->type->getType()] << ";\n";
+            outputStream << "const " << node->name->string() << ": " << tokenTypeToStringTypeMap[node->type->getType()] << ";\n";
         }
     }
 }
