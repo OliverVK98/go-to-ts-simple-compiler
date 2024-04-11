@@ -64,7 +64,7 @@ std::unique_ptr<Declaration> Parser::parseShortDeclarationNode(std::unique_ptr<D
         node->type = std::move(arr->type);
         node->value = std::move(arr);
     } else {
-        node->value = parseRHValue(LOWEST);
+        node->value = parseRValue(LOWEST);
     }
 
     if (!node->type) {
@@ -104,7 +104,7 @@ std::unique_ptr<Declaration> Parser::parseGroupedDeclarationNode(std::unique_ptr
             }
             if(currentTokenIs(ASSIGN)) {
                 getNextToken();
-                newNode->value = parseRHValue(LOWEST);
+                newNode->value = parseRValue(LOWEST);
                 if (!newNode->type) {
                     parseImplicitVariableType(newNode);
                 }
@@ -124,6 +124,7 @@ std::unique_ptr<Declaration> Parser::parseGroupedDeclarationNode(std::unique_ptr
 
 std::unique_ptr<Declaration> Parser::parseExplicitDeclarationNode(std::unique_ptr<Declaration> &node) {
     node->name = std::make_unique<Identifier>(currentToken, currentToken.Literal);
+    logger console;
 
     if(nextTokenIs(LBRACKET)) {
         if (node->isConstant) throw std::runtime_error("Constant array!");
@@ -153,10 +154,11 @@ std::unique_ptr<Declaration> Parser::parseExplicitDeclarationNode(std::unique_pt
         node->type = std::move(arr->type);
         node->value = std::move(arr);
     } else {
-        node->value = parseRHValue(LOWEST);
+        node->value = parseRValue(LOWEST);
     }
 
     if (!node->type) {
+//        console.log(node->value->testString());
         parseImplicitVariableType(node);
     }
 
@@ -165,6 +167,8 @@ std::unique_ptr<Declaration> Parser::parseExplicitDeclarationNode(std::unique_pt
 
 
 void Parser::parseImplicitVariableType(std::unique_ptr<Declaration> &node) {
+    logger console;
+//    console.log(node->value->testString());
     if (dynamic_cast<Integer*>(node->value.get())) {
         node->type = std::make_unique<IntegerType>();
     } else if (dynamic_cast<String*>(node->value.get())) {
@@ -183,7 +187,8 @@ void Parser::parseImplicitVariableType(std::unique_ptr<Declaration> &node) {
 
         node->type = std::move(arrType);
     } else {
-        throw std::runtime_error("Unhandled implicit variable type");
+        node->type = std::make_unique<BoolType>();
+//        throw std::runtime_error("Unhandled implicit variable type");
     }
 }
 
@@ -223,6 +228,16 @@ std::unique_ptr<Function> Parser::parseFunctionDeclaration() {
 
     func->parameters = parseFunctionParameters();
 
+    if (startsWithType(nextToken.Type)) {
+        getNextToken();
+        func->type = parseType();
+    } else if (nextTokenIs(LBRACKET)) {
+        getNextToken();
+        getNextToken();
+        getNextToken();
+        func->type = std::make_unique<ArrayType>(parseType());
+    }
+
     if(!checkNextTokenAndAdvance(LBRACE)) {
         return nullptr;
     }
@@ -234,9 +249,8 @@ std::unique_ptr<Function> Parser::parseFunctionDeclaration() {
 
 std::unique_ptr<CodeBlock> Parser::parseBlockNode() {
     auto block = std::make_unique<CodeBlock>(currentToken);
-    block->nodes = std::move(std::vector<std::unique_ptr<Node>>{});
-
     getNextToken();
+
 
     while (!currentTokenIs(RBRACE) && !currentTokenIs(END_OF_FILE)) {
         auto node = parseNode();
@@ -251,7 +265,7 @@ std::unique_ptr<CodeBlock> Parser::parseBlockNode() {
 
 std::vector<std::unique_ptr<Identifier>> Parser::parseFunctionParameters() {
     auto params = std::vector<std::unique_ptr<Identifier>>{};
-
+    std::vector<std::unique_ptr<Identifier>> untypedParamVector{};
     if (nextTokenIs(RPAREN)) {
         getNextToken();
         return params;
@@ -260,13 +274,47 @@ std::vector<std::unique_ptr<Identifier>> Parser::parseFunctionParameters() {
     getNextToken();
 
     auto param = std::make_unique<Identifier>(currentToken, currentToken.Literal);
-    params.emplace_back(std::move(param));
+    if (startsWithType(nextToken.Type) || nextTokenIs(LBRACKET)) {
+        getNextToken();
+        if (currentTokenIs(LBRACKET)) {
+            getNextToken();
+            getNextToken();
+            param->type = std::make_unique<ArrayType>(parseType());
+        } else {
+            param->type = parseType();
+        }
+        params.emplace_back(std::move(param));
+    } else {
+        untypedParamVector.push_back(std::move(param));
+    }
 
     while (nextTokenIs(COMMA)) {
         getNextToken();
         getNextToken();
         auto newParam = std::make_unique<Identifier>(currentToken, currentToken.Literal);
-        params.emplace_back(std::move(newParam));
+        if (startsWithType(nextToken.Type) || nextTokenIs(LBRACKET)) {
+            getNextToken();
+            std::unique_ptr<TypeNode> type;
+            if (currentTokenIs(LBRACKET)) {
+                getNextToken();
+                getNextToken();
+                type = std::make_unique<ArrayType>(parseType());
+            } else {
+                type = parseType();
+            }
+            auto extraTypeCopy = type->clone();
+            newParam->type = std::move(type);
+            params.emplace_back(std::move(newParam));
+            if (!untypedParamVector.empty()) {
+                for (auto& untypedParam : untypedParamVector) {
+                    untypedParam->type = std::move(extraTypeCopy->clone());
+                    params.emplace_back(std::move(untypedParam));
+                }
+                untypedParamVector.clear();
+            }
+        } else {
+            untypedParamVector.push_back(std::move(newParam));
+        }
     }
 
     if (!checkNextTokenAndAdvance(RPAREN)) {
@@ -276,10 +324,9 @@ std::vector<std::unique_ptr<Identifier>> Parser::parseFunctionParameters() {
     return params;
 }
 
-std::unique_ptr<FunctionCall> Parser::parseFunctionCall(std::unique_ptr<Node> func) {
-    auto funcCall = std::make_unique<FunctionCall>(currentToken, std::move(func));
+std::unique_ptr<FunctionCall> Parser::parseFunctionCall(std::unique_ptr<Node> funcName) {
+    auto funcCall = std::make_unique<FunctionCall>(currentToken, funcName->string());
     funcCall->args = std::move(parseNodeList(RPAREN));
-
     return funcCall;
 }
 
@@ -290,7 +337,7 @@ std::unique_ptr<ReturnNode> Parser::parseReturnNode() {
 
     getNextToken();
 
-    node->value = parseRHValue(LOWEST);
+    node->value = parseRValue(LOWEST);
 
     return node;
 }
@@ -298,19 +345,29 @@ std::unique_ptr<ReturnNode> Parser::parseReturnNode() {
 std::unique_ptr<Node> Parser::parseRValueNode() {
     auto node = std::make_unique<RValue>(currentToken);
 
-    node->value = parseRHValue(LOWEST);
+    node->value = parseRValue(LOWEST);
 
     return node;
 }
 
-std::unique_ptr<Node> Parser::parseRHValue(const int &precedence) {
+std::unique_ptr<Node> Parser::parseRValue(const int &precedence) {
     auto prefix = prefixParseFns[currentToken.Type];
+    logger console;
 
     if (!prefix) {
         return nullptr;
     }
 
     auto leftExp = prefix();
+    std::unique_ptr<TypeNode> type;
+
+    if (dynamic_cast<Integer*>(leftExp.get())) {
+        type =  std::make_unique<IntegerType>();
+    } else if (dynamic_cast<String*>(leftExp.get())) {
+        type =  std::make_unique<StringType>();
+    } else if (dynamic_cast<Boolean*>(leftExp.get())) {
+        type =  std::make_unique<BoolType>();
+    }
 
     while (precedence < peekPrecedence()) {
         auto infix = infixParseFns[nextToken.Type];
@@ -320,6 +377,8 @@ std::unique_ptr<Node> Parser::parseRHValue(const int &precedence) {
 
         getNextToken();
         leftExp = std::unique_ptr<Node>(infix(std::move(leftExp)));
+        logger console;
+        leftExp->type = std::move(type);
     };
 
     return leftExp;
@@ -391,7 +450,7 @@ void Parser::registerInfix(const TokenType& tokenType, infixParseFn fn) {
 std::unique_ptr<Prefix> Parser::parsePrefixNode() {
     auto node = std::make_unique<Prefix>(currentToken, currentToken.Literal);
     getNextToken();
-    node->right = parseRHValue(PREFIX);
+    node->right = parseRValue(PREFIX);
     return node;
 }
 
@@ -399,14 +458,14 @@ std::unique_ptr<Infix> Parser::parseInfixNode(std::unique_ptr<Node> left) {
     auto node = std::make_unique<Infix>(currentToken, currentToken.Literal, std::move(left));
     auto precedence = currentPrecedence();
     getNextToken();
-    node->right = parseRHValue(precedence);
+    node->right = parseRValue(precedence);
     return node;
 }
 
 std::unique_ptr<Node> Parser::parseGroupedNodes() {
     getNextToken();
 
-    auto node = parseRHValue(LOWEST);
+    auto node = parseRValue(LOWEST);
 
     if (!checkNextTokenAndAdvance(RPAREN)) {return nullptr;}
 
@@ -419,7 +478,7 @@ std::unique_ptr<IfElseNode> Parser::parseIfNode() {
     if (!checkNextTokenAndAdvance(LPAREN)) {return nullptr;}
 
     getNextToken();
-    ifNode->condition = std::move(parseRHValue(LOWEST));
+    ifNode->condition = std::move(parseRValue(LOWEST));
 
     if (!checkNextTokenAndAdvance(RPAREN)) {return nullptr;}
     if (!checkNextTokenAndAdvance(LBRACE)) {return nullptr;}
@@ -445,14 +504,14 @@ std::vector<std::unique_ptr<Node>> Parser::parseNodeList(TokenType end) {
     }
 
     getNextToken();
-    auto node = parseRHValue(LOWEST);
+    auto node = parseRValue(LOWEST);
 
-    list.push_back(std::move(parseRHValue(LOWEST)));
+    list.push_back(std::move(parseRValue(LOWEST)));
 
     while (nextTokenIs(COMMA)) {
         getNextToken();
         getNextToken();
-        list.push_back(std::move(parseRHValue(LOWEST)));
+        list.push_back(std::move(parseRValue(LOWEST)));
     }
 
     if (!checkNextTokenAndAdvance(end)) {
@@ -475,6 +534,7 @@ std::unique_ptr<Array> Parser::parseArray() {
     auto arrType = std::make_unique<ArrayType>(std::move(parseType()));
     array->type = std::move(arrType);
     getNextToken();
+
     if (!currentTokenIs(LBRACE)) {
         array->elements = std::vector<std::unique_ptr<Node>>{};
         getNextToken();
@@ -487,7 +547,7 @@ std::unique_ptr<Array> Parser::parseArray() {
 std::unique_ptr<Node> Parser::parseIndex(std::unique_ptr<Node> left) {
     auto indexNode = std::make_unique<Index>(currentToken, std::move(left));
     getNextToken();
-    indexNode->index = std::move(parseRHValue(LOWEST));
+    indexNode->index = std::move(parseRValue(LOWEST));
 
     if (!checkNextTokenAndAdvance(RBRACKET)) {
         return nullptr;

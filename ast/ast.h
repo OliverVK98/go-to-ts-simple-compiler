@@ -17,23 +17,34 @@ std::string boolToString(bool boolV);
 struct TypeNode {
     virtual ~TypeNode() = default;
 
+
     virtual TokenType getType() = 0;
     virtual TokenType getSubType() = 0;
+    virtual std::unique_ptr<TypeNode> clone() const = 0;
 };
 
 struct StringType : public TypeNode {
     TokenType getType() override  {return STRING_TYPE;}
     TokenType getSubType() override  {return NOTYPE_TYPE;}
+    std::unique_ptr<TypeNode> clone() const override {
+        return std::make_unique<StringType>(*this);
+    }
 };
 
 struct IntegerType : public TypeNode {
     TokenType getType() override  {return INT_TYPE;}
     TokenType getSubType() override  {return NOTYPE_TYPE;}
+    std::unique_ptr<TypeNode> clone() const override {
+        return std::make_unique<IntegerType>(*this);
+    }
 };
 
 struct BoolType : public TypeNode {
     TokenType getType() override  {return BOOL_TYPE;}
     TokenType getSubType() override  {return NOTYPE_TYPE;}
+    std::unique_ptr<TypeNode> clone() const override {
+        return std::make_unique<BoolType>(*this);
+    }
 };
 
 struct ArrayType : public TypeNode {
@@ -42,11 +53,15 @@ struct ArrayType : public TypeNode {
     ArrayType() {};
     TokenType getType() override  {return ARRAY_TYPE;}
     TokenType getSubType() override  {return subType->getType();}
+    std::unique_ptr<TypeNode> clone() const override {
+        return std::make_unique<ArrayType>(subType ? subType->clone() : nullptr);
+    }
 };
 
 struct Node {
     bool holdsValue = true;
     bool holdsMultipleValues = false;
+    std::unique_ptr<TypeNode> type;
 
     virtual ~Node() = default;
     virtual std::string testString() = 0;
@@ -70,7 +85,9 @@ struct Program : public Node {
 struct Identifier : public Node {
     Token token;
     std::string value;
-    Identifier(Token token, std::string value) : token(token), value(value) {}
+    std::unique_ptr<TypeNode> type;
+    std::string name;
+    Identifier(Token token, std::string value) : token(token), name(token.Literal), value(value) {}
 
     inline std::string string() override {return value;}
     inline std::string testString() override { return "Identifier(" + token.Literal + ")"; }
@@ -121,34 +138,6 @@ struct Declaration : public Node {
     std::string testString() override {return "Declaration: " + token.Literal;}
 };
 
-struct ConstNode : public Node {
-    Token token;
-    std::unique_ptr<Identifier> name;
-    std::unique_ptr<Node> value;
-    std::vector<std::unique_ptr<ConstNode>> multipleValues;
-    std::unique_ptr<TypeNode> type;
-
-    ConstNode(Token &token) : token(token) {};
-    ConstNode() {};
-
-    inline std::string string() override {return token.Literal;}
-    std::string testString() override;
-};
-
-struct VarNode : public Node {
-    Token token;
-    std::unique_ptr<Identifier> name;
-    std::unique_ptr<Node> value;
-    std::vector<std::unique_ptr<VarNode>> multipleValues;
-    std::unique_ptr<TypeNode> type;
-
-    VarNode(Token &token) : token(token) {};
-    VarNode() {};
-
-    inline std::string string() override {return token.Literal;}
-    std::string testString() override;
-};
-
 struct ReturnNode : public Node {
     Token token;
     std::unique_ptr<Node> value;
@@ -196,7 +185,7 @@ struct Prefix : public Node {
 
     Prefix(Token token, std::string Operator) : token(token), Operator(Operator) {};
 
-    inline std::string string() override {return token.Literal;}
+    inline std::string string() override;
     std::string testString() override;
 };
 
@@ -209,7 +198,7 @@ struct Infix : public Node {
     Infix(Token token, std::string Operator, std::unique_ptr<Node> left) :
         token(token), Operator(Operator), left(std::move(left)) {};
 
-    inline std::string string() override {return token.Literal;}
+    std::string string() override;
     std::string testString() override;
 };
 
@@ -218,6 +207,7 @@ struct Function : public Node {
     std::vector<std::unique_ptr<Identifier>> parameters;
     std::unique_ptr<CodeBlock> body;
     std::string funcName;
+    std::unique_ptr<TypeNode> type;
     Function(Token& token) : token(token) {};
 
     inline std::string string() override {return token.Literal;}
@@ -226,9 +216,9 @@ struct Function : public Node {
 
 struct FunctionCall : public Node {
     Token token;
-    std::unique_ptr<Node> func;
+    std::string funcName;
     std::vector<std::unique_ptr<Node>> args;
-    FunctionCall(Token& token, std::unique_ptr<Node> func) : token(token), func(std::move(func)) {};
+    FunctionCall(Token& token, std::string funcName) : token(token), funcName(std::move(funcName)) {};
 
     inline std::string string() override {return token.Literal;}
     std::string testString() override;

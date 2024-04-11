@@ -1,0 +1,6 @@
+string
+number
+boolean
+string
+number
+boolean

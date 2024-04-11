@@ -55,7 +55,7 @@ private:
     void registerPrefix(const TokenType& tokenType, prefixParseFn fn);
     void registerInfix(const TokenType& tokenType, infixParseFn fn);
 
-    std::unique_ptr<Node> parseRHValue(const int &precedence);
+    std::unique_ptr<Node> parseRValue(const int &precedence);
     std::unique_ptr<Node> parseNode();
     std::unique_ptr<ReturnNode> parseReturnNode();
     std::unique_ptr<Node> parseRValueNode();

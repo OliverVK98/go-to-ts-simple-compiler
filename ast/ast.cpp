@@ -19,22 +19,6 @@ std::string Program::string() {
     return std::string();
 }
 
-std::string ConstNode::testString() {
-    std::stringstream ss;
-
-    ss << "ConstNode(" << name->testString() << " = " << value->testString() << ")";
-
-    return ss.str();
-}
-
-std::string VarNode::testString() {
-    std::stringstream ss;
-
-    ss << "VarNode(" << name->testString() << " = " << value->testString() << ")";
-
-    return ss.str();
-}
-
 std::string ReturnNode::testString() {
     std::stringstream ss;
 
@@ -59,10 +43,26 @@ std::string Prefix::testString() {
     return ss.str();
 }
 
+std::string Prefix::string() {
+    std::stringstream ss;
+
+    ss << "Prefix(" << Operator << right->testString() << ")";
+
+    return ss.str();
+}
+
 std::string Infix::testString() {
     std::stringstream ss;
 
     ss << "(" << left->testString() << " " + Operator + " " << right->testString() << ")";
+
+    return ss.str();
+}
+
+std::string Infix::string() {
+    std::stringstream ss;
+
+    ss << left->string() << " " + Operator + " " << right->string();
 
     return ss.str();
 }
@@ -157,7 +157,7 @@ std::string FunctionCall::testString() {
         }
     }
 
-    out << "FunctionCall(" + func->testString() << "(" << argumentsString + ")";
+    out << "FunctionCall(" + funcName << "(" << argumentsString + ")";
 
     return out.str();
 }

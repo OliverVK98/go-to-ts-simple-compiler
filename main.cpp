@@ -5,9 +5,17 @@
 #include "compiler/compiler.h"
 
 std::string testCase = R"(
-func test() string {
-	const a = "string"
-	return a
+func test(a, b string, c []int) string {
+	var newString = a + 20
+
+    func test(a, b int, c []int) string {
+	    var newString = a + 20
+        func test(a, b bool, c []int) string {
+            var newString = a + 20
+        }
+    }
+
+    return newString
 }
 )";
 
@@ -58,8 +66,8 @@ std::unordered_map<std::string, std::string> testCases = {
         {"return 5 + 6;", "ReturnNode((Integer(5) + Integer(6)))"},
         {"return;", "ReturnNode(EMPTY)"},
         {"if (2>1) {return true;}", "IfStatement(Condition((Integer(2) > Integer(1))) Consequence(ReturnNode(Boolean(true))) Alternative())"},
-        {"func add(a, b) { return a + b; }", "Function(Name(Identifier(add)) Params(Identifier(a), Identifier(b)) Body(ReturnNode((Identifier(a) + Identifier(b)))))"},
-        {"const a = func add(a, b) { return a + b; }", "ConstNode(Identifier(a) = Function(Name(a) Params(Identifier(a), Identifier(b)) Body(ReturnNode((Identifier(a) + Identifier(b))))))"},
+        {"funcName add(a, b) { return a + b; }", "Function(Name(Identifier(add)) Params(Identifier(a), Identifier(b)) Body(ReturnNode((Identifier(a) + Identifier(b)))))"},
+        {"const a = funcName add(a, b) { return a + b; }", "ConstNode(Identifier(a) = Function(Name(a) Params(Identifier(a), Identifier(b)) Body(ReturnNode((Identifier(a) + Identifier(b))))))"},
         {"add(4, 3)", "RValue(FunctionCall(Identifier(add)(Integer(4), Integer(3))))"},
         {"[1, 2, 3][1]", "RValue(IndexExpression(Left:(Array([Integer(1), Integer(2), Integer(3)])) Right: [Integer(1)]))"},
         {"const a = 10; const b = 12;", "123"}
