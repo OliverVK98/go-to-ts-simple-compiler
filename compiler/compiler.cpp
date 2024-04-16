@@ -10,48 +10,78 @@ std::unordered_map<TokenType , std::string> tokenTypeToStringTypeMap = {
         {INT_TYPE, "number"},
         {STRING_TYPE, "string"},
         {BOOL_TYPE, "boolean"},
+        {ARRAY_TYPE+INT_TYPE, "number"},
+        {BOOL_TYPE, "boolean"},
+        {BOOL_TYPE, "boolean"},
+        {NOTYPE_TYPE, "void"},
 };
 
 std::string getTsType(const TokenType& type, const std::unique_ptr<TypeNode>& nodeType) {
-    if (type != ARRAY_TYPE) {
-        return tokenTypeToStringTypeMap[type];
-    } else {
+    if (type.find(ARRAY_TYPE) == 0) {
         if (auto arrType = dynamic_cast<ArrayType*>(nodeType.get())) {
             return tokenTypeToStringTypeMap[arrType->getSubType()] + "[]";
-        } else {
-            throw std::runtime_error("Unknown type in getTsType");
         }
+    } else {
+        return tokenTypeToStringTypeMap[type];
     }
 }
 
+std::string getTsSubType(const std::string& type) {
+    auto pos = type.find(ARRAY_TYPE);
+
+    if (pos == 0) {
+        std::string subType = type.substr(ARRAY_TYPE.length());
+        return  tokenTypeToStringTypeMap[subType];
+    } else {
+        throw std::runtime_error("Type has no subtypes.");
+    }
+}
+
+void Compiler::enterScope() {
+    auto newScope = std::make_unique<VarTable>();
+    newScope->outer = std::move(varTable);
+    varTable = std::move(newScope);
+    indentLevel++;
+}
+
+void Compiler::exitScope() {
+    varTable = std::move(varTable->outer);
+    indentLevel--;
+}
+
+VarTable* Compiler::currentScope() {
+    return varTable.get();
+}
+
+std::string Compiler::getIndent() {
+    std::string ident;
+
+    for (int i=0; i < indentLevel; i ++) {
+        ident += "\t";
+    }
+
+    return ident;
+}
+
 void Compiler::compile(const std::unique_ptr<Node>& node) {
-    logger console;
-//    console.log(node->testString());
     if (auto program = dynamic_cast<Program*>(node.get())) {
         for (const auto& statement : program->nodes) {
             compile(statement);
         }
     } else if (auto rvalue = dynamic_cast<RValue*>(node.get())) {
         if (auto declStmt = dynamic_cast<Declaration*>(rvalue->value.get())) {
-            emitVar(declStmt);
+            emitDeclaration(declStmt, false);
         } else if (auto funcCall = dynamic_cast<FunctionCall*>(rvalue->value.get())) {
             emitFunctionCall(funcCall);
         } else {
             throw std::runtime_error("Unhandled RValue type in compilation.");
         }
     } else if (auto declStmt = dynamic_cast<Declaration*>(node.get())) {
-//        console.log(declStmt->value->string());
-
         if (auto infix = dynamic_cast<Infix*>(declStmt->value.get())) {
-            parseInfix(infix, declStmt);
-            return;
+            emitInfix(infix, declStmt, true);
+            return ;
         }
-
-        if (declStmt->isConstant) {
-            emitConst(declStmt);
-        } else {
-            emitVar(declStmt);
-        }
+        return declStmt->isConstant ? emitDeclaration(declStmt, true) : emitDeclaration(declStmt, false);
     } else if (auto func = dynamic_cast<Function*>(node.get())) {
         emitFunc(func);
     } else if  (auto returnStmt = dynamic_cast<ReturnNode*>(node.get())) {
@@ -63,25 +93,53 @@ void Compiler::compile(const std::unique_ptr<Node>& node) {
     }
 }
 
-void Compiler::emitVar(const Declaration* node) {
+void Compiler::emitDeclaration(Declaration *node, bool isConstant) {
     if (!node) return;
+    auto indent = getIndent();
+    auto scope = currentScope();
+    auto declKeyword = isConstant ? "const " : "let ";
+    outputStream << indent;
+
+    if (auto funcCall = dynamic_cast<FunctionCall*>(node->value.get())) {
+        if (isConstant) throw std::runtime_error("Const value can't be a result of function call.");
+        auto type = scope->resolve(funcCall->funcName)->type;
+        auto tsType = tokenTypeToStringTypeMap[type];
+        outputStream << "let " << node->name->string() << ": " << tsType << " = ";
+        emitFunctionCall(funcCall);
+        outputStream << ";\n";
+        return;
+    }
+
+    if (auto index = dynamic_cast<Index*>(node->value.get())) {
+        if (isConstant) throw std::runtime_error("Const value can't be a result of function call.");
+        std::string type;
+        std::string tsType;
+
+        if (auto ident = dynamic_cast<Identifier*>(index->left.get())) {
+            type = ident->type ? ident->type->getType() : scope->resolve(ident->name)->type;
+            tsType = getTsSubType(type);
+        } else if (index->left->type->getType() != ARRAY_TYPE) throw std::runtime_error("Index can be only used with arrays");
+        outputStream << "let " << node->name->string() << ": " << tsType << " = " << index->string() << ";\n";
+        return;
+    }
 
     if (node->holdsMultipleValues) {
         for (const auto & value : node->multipleValues) {
-            auto varStmt = dynamic_cast<Declaration*>(value.get());
-            emitVar(varStmt);
+            auto declStmt = dynamic_cast<Declaration*>(value.get());
+            emitDeclaration(declStmt, isConstant);
         }
         return;
     }
 
     if (node->type->getType() == INT_TYPE || node->type->getType() == BOOL_TYPE || node->type->getType() == STRING_TYPE) {
         if (node->value->holdsValue) {
-            outputStream << "let " << node->name->string() << ": " << tokenTypeToStringTypeMap[node->type->getType()] << " = " << node->value->string() << ";\n";
+            outputStream << declKeyword << node->name->string() << ": " << tokenTypeToStringTypeMap[node->type->getType()] << " = " << node->value->string() << ";\n";
         } else {
-            outputStream << "let " << node->name->string() << ": " << tokenTypeToStringTypeMap[node->type->getType()] << ";\n";
+            outputStream << declKeyword << node->name->string() << ": " << tokenTypeToStringTypeMap[node->type->getType()] << ";\n";
         }
-    } else if (node->type->getType() == ARRAY_TYPE) {
+    } else if (node->type->getType() == ARRAY_TYPE && !isConstant) {
         std::string arrType = node->type->getSubType();
+        scope->define(node->name->string(), node->type->getType() + node->type->getSubType());
         outputStream << "let " << node->name->string() <<": " << tokenTypeToStringTypeMap[arrType] << "[]";
 
         if (node->value->holdsValue) {
@@ -90,34 +148,17 @@ void Compiler::emitVar(const Declaration* node) {
         } else {
             outputStream << ";\n";
         }
+    } else if (node->type->getType() == NOTYPE_TYPE && !isConstant) {
+        auto type = scope->resolve(node->value->string())->type;
+        auto tsType = tokenTypeToStringTypeMap[type];
+        outputStream << "let " << node->name->string() << ": " << tsType << " = " << node->value->string() << ";\n";
     }
 }
 
-void Compiler::emitConst(const Declaration *node) {
+void Compiler::emitFunc(Function *node) {
     if (!node) return;
-
-    if (node->holdsMultipleValues) {
-        for (const auto & value : node->multipleValues) {
-            auto constStmt = dynamic_cast<Declaration*>(value.get());
-                emitConst(constStmt);
-        }
-        return;
-    }
-
-    if (node->type->getType() == INT_TYPE || node->type->getType() == BOOL_TYPE || node->type->getType() == STRING_TYPE) {
-        if (node->value->holdsValue) {
-            outputStream << "const " << node->name->string() << ": " << tokenTypeToStringTypeMap[node->type->getType()] << " = " << node->value->string() << ";\n";
-        } else {
-            outputStream << "const " << node->name->string() << ": " << tokenTypeToStringTypeMap[node->type->getType()] << ";\n";
-        }
-    }
-}
-
-void Compiler::emitFunc(const Function *node) {
-    if (!node) return;
-
+    auto indent = getIndent();
     enterScope();
-
     std::string paramString;
 
     auto scope = currentScope();
@@ -133,62 +174,75 @@ void Compiler::emitFunc(const Function *node) {
         }
     }
 
-    outputStream << "function " << node->funcName << "(" << paramString << ")";
+    outputStream << indent << "function " << node->funcName << "(" << paramString << ")";
 
     if (node->type) {
+        scope->outer->define(node->funcName, node->type->getType());
         outputStream << ": " << getTsType(node->type->getType(), node->type) << " ";
     } else {
+        scope->outer->define(node->funcName, NOTYPE_TYPE);
         outputStream << ": void ";
     }
 
     outputStream << "{" << "\n";
 
     for (const auto &stmt : node->body->nodes) {
-        outputStream << "\t";
         compile(stmt);
     }
 
-    outputStream << "}" << "\n";
+    outputStream << indent << "}" << "\n";
     exitScope();
-
 }
 
-void Compiler::emitReturn(const ReturnNode *node) {
+void Compiler::emitReturn(ReturnNode *node) {
     if (!node) return;
     if (node->value) {
-        outputStream << "return " << node->value->string() << ";" << "\n";
+        outputStream << getIndent() << "return " << node->value->string() << ";" << "\n";
     } else {
-        outputStream << "return;" << "\n";
+        outputStream << getIndent() << "return;" << "\n";
     }
 }
 
-void Compiler::emitFunctionCall(const FunctionCall *node) {
+void Compiler::emitFunctionCall(FunctionCall *node) {
     if (!node) return;
-    outputStream << node->funcName << "(";
-    for (int i=0; i < node->args.size(); i++) {
-        if (i < node->args.size()-1) {
-            outputStream << node->args[i]->string() << ",";
-        } else {
-            outputStream << node->args[i]->string();
-        }
-    }
-    outputStream << ")";
+    outputStream << node->string();
 }
 
-void Compiler::parseInfix(Infix *node, const Declaration* decl) {
-    logger console;
-    if (node->type) {
-        outputStream << "let " << decl->name->string() << ": " << getTsType(node->type->getType(), node->type) << " = " << node->string() << ";\n";
-    } else {
-        std::string type;
-        std::string tsType;
-        if (auto ident = dynamic_cast<Identifier*>(node->left.get())) {
-            auto scope = currentScope();
-            type = scope->resolve(ident->name)->type;
-            tsType = tokenTypeToStringTypeMap[type];
-            console.log(tsType);
-        }
-        outputStream << "let " << decl->name->string() << ": " << tsType << " = " << node->string() << ";\n";
+std::pair<std::string, std::string> Compiler::emitInfix(Infix *node, Declaration *decl, bool isRootCall) {
+    if (!node) return {"", ""};
+
+    auto scope = currentScope();
+    std::string exprType;
+    std::string expr;
+
+    if (auto ident = dynamic_cast<Identifier*>(node->left.get())) {
+        exprType = scope->resolve(ident->name)->type;
+        expr = ident->string();
+    } else if (auto infix = dynamic_cast<Infix*>(node->left.get())) {
+        auto result = emitInfix(infix, decl, false);
+        expr = result.first;
+        exprType = result.second;
+    } else if (auto funcCall = dynamic_cast<FunctionCall*>(node->left.get())) {
+        if (decl->isConstant) throw std::runtime_error("Const value can't be a result of function call.");
+        exprType = scope->resolve(funcCall->funcName)->type;
+        expr = funcCall->string();
+    } else if (auto index = dynamic_cast<Index*>(node->left.get())) {
+        if (decl->isConstant) throw std::runtime_error("Const value can't be a result of index subscription");
+        exprType = index->type ? index->type->getType() : scope->resolve(index->left->string())->type;
+        expr = index->string();
+    } else if (auto valNode = dynamic_cast<ValueNode*>(node->left.get())) {
+        expr = valNode->string();
+        exprType = valNode->type->getType();
     }
 
+    expr += " " + node->Operator + " " + node->right->string();
+
+    if (isRootCall) {
+        outputStream << getIndent() << "let " << decl->name->string() << ": " << tokenTypeToStringTypeMap[exprType] << " = " << expr << ";\n";
+    }
+
+    return {expr, exprType};
 }
+
+
+

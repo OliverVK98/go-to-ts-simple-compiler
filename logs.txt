@@ -1,6 +1,2 @@
 string
-number
-boolean
-string
-number
-boolean
+type_string

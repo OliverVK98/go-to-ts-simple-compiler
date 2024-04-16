@@ -43,6 +43,12 @@ private:
     std::unordered_map<TokenType, infixParseFn> infixParseFns;
 
     inline void getNextToken() { currentToken = nextToken; nextToken = lexer->nextToken(); }
+    inline void getNextToken(int n) {
+        for (int i = 0; i < n; i++) {
+            getNextToken();
+        }
+    }
+
     inline bool currentTokenIs(const TokenType &t) const { return currentToken.Type == t; }
     inline bool nextTokenIs(const TokenType &t) const { return nextToken.Type == t; }
     inline bool tokenTypeIsTypeNode(const TokenType& t) const { return t == BOOL_TYPE || t == STRING_TYPE || t == INT_TYPE || t == ARRAY_TYPE; }

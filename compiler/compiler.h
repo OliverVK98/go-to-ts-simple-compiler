@@ -8,20 +8,25 @@
 #include <fstream>
 #include "../ast/ast.h"
 #include "varTable.h"
+#include "../logger/logger.h"
 
 extern std::unordered_map<TokenType , std::string> tokenTypeToStringTypeMap;
 std::string getTsType(const TokenType& type, const std::unique_ptr<TypeNode>& nodeType);
+std::string getTsSubType(const std::string& type);
 
 class Compiler {
+private:
+    int indentLevel = -1;
 public:
+    std::unique_ptr<VarTable> varTable;
     std::ofstream outputStream;
-    VarTable varTable;
-    std::vector<std::unique_ptr<VarTable>> scopeStack;
+    std::vector<std::unique_ptr<VarTable>> scopeStack{};
 
     Compiler(const std::string& outputFile) : outputStream(outputFile, std::ios::app) {
         if (!outputStream.is_open()) {
             throw std::runtime_error("Failed to open output file: " + outputFile);
         }
+        enterScope();
     }
     ~Compiler() {
         if (outputStream.is_open()) {
@@ -29,38 +34,20 @@ public:
         }
     }
 
+    // Scope management
+    void enterScope();
+    void exitScope();
+    VarTable* currentScope();
 
-    void enterScope() {
-        auto newScope = std::make_unique<VarTable>();
-        if (!scopeStack.empty()) {
-            // The new scope's outer is the current top of the stack.
-            newScope->outer = std::move(scopeStack.back());
-        }
-        scopeStack.push_back(std::move(newScope));
-    }
-
-    void exitScope() {
-        if (!scopeStack.empty()) {
-            // Simply remove the current scope from the stack.
-            scopeStack.pop_back();
-        }
-    }
-
-    VarTable* currentScope() {
-        if (scopeStack.empty()) return nullptr;
-        return scopeStack.back().get();
-    }
-
-
+    std::string getIndent();
 
     void compile(const std::unique_ptr<Node>& node);
 
-    void emitVar(const Declaration* node);
-    void emitConst(const Declaration* node);
-    void emitFunc(const Function* node);
-    void emitReturn(const ReturnNode* node);
-    void emitFunctionCall(const FunctionCall* node);
-    void parseInfix(Infix *node, const Declaration* decl);
+    void emitDeclaration(Declaration* node, bool isConstant);
+    void emitFunc(Function* node);
+    void emitReturn(ReturnNode* node);
+    void emitFunctionCall(FunctionCall* node);
+    std::pair<std::string, std::string> emitInfix(Infix *node, Declaration *decl, bool isRootCall);
 };
 
 #endif //GO_TO_TS_SIMPLE_COMPILER_COMPILER_H

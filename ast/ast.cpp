@@ -162,6 +162,20 @@ std::string FunctionCall::testString() {
     return out.str();
 }
 
+std::string FunctionCall::string() {
+    std::ostringstream out;
+    out << funcName << "(";
+    for (int i=0; i<args.size(); i++) {
+        if (i<args.size()-1) {
+            out<<args[i]->string()<<", ";
+        } else {
+            out<<args[i]->string();
+        }
+    }
+    out << ")";
+    return out.str();
+}
+
 std::string Array::string() {
     std::ostringstream out;
 

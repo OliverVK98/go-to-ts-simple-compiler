@@ -3,6 +3,7 @@
 //
 
 #include "varTable.h"
+#include "../logger/logger.h"
 
 void VarTable::define(std::string name, TokenType type) {
     VarScope scope = outer == nullptr ? GLOBAL_SCOPE : LOCAL_SCOPE;
@@ -16,6 +17,5 @@ std::unique_ptr<Variable> VarTable::resolve(const std::string& name) {
     } else if (outer != nullptr) {
         return outer->resolve(name);
     }
-
     return nullptr;
 }

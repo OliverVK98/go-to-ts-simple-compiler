@@ -58,6 +58,14 @@ struct ArrayType : public TypeNode {
     }
 };
 
+struct NoType : public TypeNode {
+    TokenType getType() override  {return NOTYPE_TYPE;}
+    TokenType getSubType() override  {return NOTYPE_TYPE;}
+    std::unique_ptr<TypeNode> clone() const override {
+        return std::make_unique<NoType>(*this);
+    }
+};
+
 struct Node {
     bool holdsValue = true;
     bool holdsMultipleValues = false;
@@ -67,6 +75,14 @@ struct Node {
     virtual std::string testString() = 0;
     virtual std::string string() = 0;
     inline void setHoldsValue(bool holds) {holdsValue = holds;}
+};
+
+struct ValueNode : public Node {
+    std::unique_ptr<TypeNode> type;
+
+    ValueNode(std::unique_ptr<TypeNode> initType) : type(std::move(initType)) {}
+
+    virtual ~ValueNode() = default;
 };
 
 struct Program : public Node {
@@ -93,11 +109,13 @@ struct Identifier : public Node {
     inline std::string testString() override { return "Identifier(" + token.Literal + ")"; }
 };
 
-struct Integer : public Node {
+struct Integer : public ValueNode {
     Token token;
     int value;
-    Integer(Token token) : token(token) {};
-    Integer() = default;
+    std::unique_ptr<TypeNode> type;
+    Integer(Token token, int val) : ValueNode(std::make_unique<IntegerType>()), token(token), value(val) {}
+    Integer(Token token) : ValueNode(std::make_unique<IntegerType>()), token(token) {}
+    Integer() : ValueNode(std::make_unique<IntegerType>()) {};
 
     inline std::string string() override {return std::to_string(value);}
     inline std::string testString() override { return "Integer(" + token.Literal + ")"; }
@@ -106,6 +124,7 @@ struct Integer : public Node {
 struct String : public Node {
     Token token;
     std::string value;
+    std::unique_ptr<TypeNode> type = std::make_unique<StringType>();
     String(Token token, std::string value) : token(token), value(value) {};
     String() = default;
 
@@ -116,6 +135,7 @@ struct String : public Node {
 struct Boolean : public Node {
     Token token;
     bool value;
+    std::unique_ptr<TypeNode> type = std::make_unique<BoolType>();
     Boolean(Token token, bool value) : token(token), value(value) {};
     Boolean() = default;
 
@@ -134,7 +154,7 @@ struct Declaration : public Node {
     Declaration(Token &token) : token(token) {};
     Declaration() {};
 
-    inline std::string string() override {return token.Literal;}
+    inline std::string string()  override {return token.Literal;}
     std::string testString() override {return "Declaration: " + token.Literal;}
 };
 
@@ -220,7 +240,7 @@ struct FunctionCall : public Node {
     std::vector<std::unique_ptr<Node>> args;
     FunctionCall(Token& token, std::string funcName) : token(token), funcName(std::move(funcName)) {};
 
-    inline std::string string() override {return token.Literal;}
+    std::string string() override;
     std::string testString() override;
 };
 
@@ -242,7 +262,7 @@ struct Index : public Node {
     std::unique_ptr<Node> index;
     Index(Token& token, std::unique_ptr<Node> left) : token(token), left(std::move(left)) {};
 
-    inline std::string string() override {return token.Literal;}
+    inline std::string string() override {return left->string() + "[" + index->string() + "]";}
     std::string testString() override;
 };
 

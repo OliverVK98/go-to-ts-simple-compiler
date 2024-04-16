@@ -28,7 +28,6 @@ class VarTable {
 public:
     std::unique_ptr<VarTable> outer;
     std::unordered_map<std::string, std::unique_ptr<Variable>> varMap{};
-    std::vector<Variable> freeSymbols;
 
     VarTable() {};
 
