@@ -409,7 +409,9 @@ std::unique_ptr<Integer> Parser::parseIntegerLiteral() {
 }
 
 std::unique_ptr<Node> Parser::parseNode() {
-    if (currentToken.Type == CONST) {
+    if (currentToken.Type == IDENTIFIER && nextToken.Type == ASSIGN) {
+        return parseAssignmentNode();
+    } else if (currentToken.Type == CONST) {
         return parseDeclarationNode(CONST_DECL);
     } else if (currentToken.Type == VAR) {
         return parseDeclarationNode(VAR_DECL);
@@ -459,15 +461,10 @@ std::unique_ptr<Node> Parser::parseGroupedNodes() {
 
 std::unique_ptr<IfElseNode> Parser::parseIfNode() {
     auto ifNode = std::make_unique<IfElseNode>(currentToken);
-
     if (!checkNextTokenAndAdvance(LPAREN)) {return nullptr;}
-
     getNextToken();
     ifNode->condition = std::move(parseRValue(LOWEST));
-
-    if (!checkNextTokenAndAdvance(RPAREN)) {return nullptr;}
-    if (!checkNextTokenAndAdvance(LBRACE)) {return nullptr;}
-
+    getNextToken(2);
     ifNode->consequence = std::move(parseBlockNode());
 
     if (nextTokenIs(ELSE)) {
@@ -571,3 +568,10 @@ std::unique_ptr<Node> Parser::parseIdentifier() {
     return std::make_unique<Identifier>(currentToken, currentToken.Literal);
 }
 
+std::unique_ptr<Node> Parser::parseAssignmentNode() {
+    auto assignment = std::make_unique<Assignment>();
+    assignment->variable = std::move(parseIdentifier());
+    getNextToken(2);
+    assignment->value = parseRValue(LOWEST);
+    return assignment;
+}

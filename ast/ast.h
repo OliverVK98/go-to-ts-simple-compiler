@@ -74,7 +74,6 @@ struct Node {
     virtual ~Node() = default;
     virtual std::string testString() = 0;
     virtual std::string string() = 0;
-    inline void setHoldsValue(bool holds) {holdsValue = holds;}
 };
 
 struct ValueNode : public Node {
@@ -121,23 +120,25 @@ struct Integer : public ValueNode {
     inline std::string testString() override { return "Integer(" + token.Literal + ")"; }
 };
 
-struct String : public Node {
+struct String : public ValueNode {
     Token token;
     std::string value;
     std::unique_ptr<TypeNode> type = std::make_unique<StringType>();
-    String(Token token, std::string value) : token(token), value(value) {};
-    String() = default;
+    String(Token token, std::string val) : ValueNode(std::make_unique<StringType>()), token(token), value(val) {}
+    String(Token token) : ValueNode(std::make_unique<StringType>()), token(token) {}
+    String() : ValueNode(std::make_unique<StringType>()) {};
 
     inline std::string string() override {return "\"" + value + "\"";}
     inline std::string testString() override { return "String(" + token.Literal + ")"; }
 };
 
-struct Boolean : public Node {
+struct Boolean : public ValueNode {
     Token token;
     bool value;
     std::unique_ptr<TypeNode> type = std::make_unique<BoolType>();
-    Boolean(Token token, bool value) : token(token), value(value) {};
-    Boolean() = default;
+    Boolean(Token token, bool val) : ValueNode(std::make_unique<BoolType>()), token(token), value(val) {}
+    Boolean(Token token) : ValueNode(std::make_unique<BoolType>()), token(token) {}
+    Boolean() : ValueNode(std::make_unique<BoolType>()) {};
 
     inline std::string string() override {return boolToString(value);}
     inline std::string testString() override { return "Boolean(" + token.Literal + ")"; }
@@ -156,6 +157,15 @@ struct Declaration : public Node {
 
     inline std::string string()  override {return token.Literal;}
     std::string testString() override {return "Declaration: " + token.Literal;}
+};
+
+struct Assignment : public Node {
+    std::unique_ptr<Node> variable;
+    std::unique_ptr<Node> value;
+
+    Assignment() = default;
+    inline std::string string()  override {return variable->string() + " = " + value->string();}
+    std::string testString() override {return "Assignment(" + variable->string() + " = " + value->string() + ")";}
 };
 
 struct ReturnNode : public Node {

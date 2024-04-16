@@ -4,27 +4,44 @@
 #include "parser/parser.h"
 #include "compiler/compiler.h"
 
+// PREFIX + IFELSE NODES.
 std::string testCase = R"(
-const a int = 10
-func test(a, b string, c []int) string {
-	var newString = 1 + 1 + 2
-	var newString = 1 + 1
-	var newString = a
-	var newString = a + "test"
-	var newString = a + "test" + "test"
+func main() {
+    var a int = 10
+    var str string = "Hello"
+    const flag bool = true
+    d := 42
 
-    func test(a, b int, c []int) string {
-	    var newString = 1 + 1 + 2
-	    var newString = 1 + 1
-	    var newString = a
-	    var newString = a + "test"
-	    var newString = a + "test" + "test"
+    var (
+        g string = "Grouped"
+        h bool   = true
+        b int    = 100
+    )
+
+    j := []int{1, 2, 3, 4, 5}
+
+    func add(x, y int) int {
+        return x + y
     }
 
-    return
-}
-var a = test(a, b, "string", 1, []int{1,2,3}) + 3 + 3 + 3 + 3
+    func checkPositive(num int) bool {
+        return num > 0
+    }
 
+    result := add(a, b)
+
+    if (flag!=true) {
+        result = 10
+    } else {
+        result = 20
+    }
+
+    if (checkPositive(result)) {
+        result = 10
+    } else {
+        result = 20
+    }
+}
 )";
 
 std::string functionAndCallsTestCase = R"(
@@ -47,7 +64,6 @@ func test(a, b string, c []int) string {
     return
 }
 var a = test(a, b, "string", 1, []int{1,2,3}) + 3
-
 )";
 
 std::string variableDeclTestCase = R"(

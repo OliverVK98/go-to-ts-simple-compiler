@@ -80,6 +80,7 @@ private:
     std::vector<std::unique_ptr<Node>> parseNodeList(TokenType end);
     std::unique_ptr<Array> parseArray();
     std::unique_ptr<Node> parseIndex(std::unique_ptr<Node> left);
+    std::unique_ptr<Node> parseAssignmentNode();
 
     // Parsing variables and their types
     std::unique_ptr<Node> parseDeclarationNode(DeclarationType declType);

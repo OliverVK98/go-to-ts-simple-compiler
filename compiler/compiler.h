@@ -46,8 +46,10 @@ public:
     void emitDeclaration(Declaration* node, bool isConstant);
     void emitFunc(Function* node);
     void emitReturn(ReturnNode* node);
-    void emitFunctionCall(FunctionCall* node);
+    inline void emitFunctionCall(FunctionCall* node) {if (!node) return; outputStream << node->string();}
     std::pair<std::string, std::string> emitInfix(Infix *node, Declaration *decl, bool isRootCall);
+    void emitIfElse(IfElseNode *node);
+    inline void emitAssignment(Assignment *node) {if (!node) return; outputStream << getIndent() << node->string() << ";\n";}
 };
 
 #endif //GO_TO_TS_SIMPLE_COMPILER_COMPILER_H

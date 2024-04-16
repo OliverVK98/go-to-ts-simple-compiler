@@ -84,10 +84,12 @@ void Compiler::compile(const std::unique_ptr<Node>& node) {
         return declStmt->isConstant ? emitDeclaration(declStmt, true) : emitDeclaration(declStmt, false);
     } else if (auto func = dynamic_cast<Function*>(node.get())) {
         emitFunc(func);
-    } else if  (auto returnStmt = dynamic_cast<ReturnNode*>(node.get())) {
+    } else if (auto returnStmt = dynamic_cast<ReturnNode*>(node.get())) {
         emitReturn(returnStmt);
-    } else if  (auto integer = dynamic_cast<Integer*>(node.get())) {
-        outputStream << integer->string();
+    } else if (auto ifStmt = dynamic_cast<IfElseNode*>(node.get())) {
+        emitIfElse(ifStmt);
+    } else if (auto assignment = dynamic_cast<Assignment*>(node.get())) {
+        emitAssignment(assignment);
     } else {
         throw std::runtime_error("Unhandled node subType in compilation.");
     }
@@ -203,11 +205,6 @@ void Compiler::emitReturn(ReturnNode *node) {
     }
 }
 
-void Compiler::emitFunctionCall(FunctionCall *node) {
-    if (!node) return;
-    outputStream << node->string();
-}
-
 std::pair<std::string, std::string> Compiler::emitInfix(Infix *node, Declaration *decl, bool isRootCall) {
     if (!node) return {"", ""};
 
@@ -242,6 +239,27 @@ std::pair<std::string, std::string> Compiler::emitInfix(Infix *node, Declaration
     }
 
     return {expr, exprType};
+}
+
+void Compiler::emitIfElse(IfElseNode *node) {
+    outputStream << getIndent() << "if (" << node->condition->string() << ") {\n";
+    enterScope();
+    for (const auto &stmt : node->consequence->nodes) {
+        compile(stmt);
+    }
+    exitScope();
+    outputStream << getIndent() << "}";
+
+    if (node->alternative) {
+        outputStream << " else {\n";
+        enterScope();
+        for (const auto &stmt : node->alternative->nodes) {
+            compile(stmt);
+        }
+        exitScope();
+        outputStream << getIndent() << "}";
+    }
+    outputStream << "\n";
 }
 
 
