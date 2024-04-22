@@ -7,8 +7,6 @@
 
 #include <utility>
 
-// TODO: add factory?
-
 bool startsWithType(const std::string& str) {
     const std::string prefix = "type_";
     if (str.length() < prefix.length()) {
@@ -38,9 +36,8 @@ bool Parser::checkNextTokenAndAdvance(const TokenType& t) {
     return false;
 }
 
-// PARSING VARIABLES AND THEIR TYPES
 std::unique_ptr<Node> Parser::parseDeclarationNode(DeclarationType declType) {
-    auto node = std::make_unique<Declaration>(currentToken);
+    auto node = std::make_unique<Declaration>();
     if (declType == CONST_DECL) node->isConstant = true;
     if (declType == SHORT_DECL) {
         return parseShortDeclarationNode(node);
@@ -48,14 +45,15 @@ std::unique_ptr<Node> Parser::parseDeclarationNode(DeclarationType declType) {
         // Parsing non-grouped declarations
         return parseExplicitDeclarationNode(node);
     } else if (checkNextTokenAndAdvance(LPAREN)) {
-        return parseGroupedDeclarationNode(node);
+        auto var =  parseGroupedDeclarationNode(node);
+        return var;
     } else {
         throw std::runtime_error("Unknown variable declaration");
     }
 }
 
 std::unique_ptr<Declaration> Parser::parseShortDeclarationNode(std::unique_ptr<Declaration> &node) {
-    node->name = std::make_unique<Identifier>(currentToken, currentToken.Literal);
+    node->name = std::make_unique<Identifier>(currentToken.Literal);
     getNextToken(2);
 
     if (currentTokenIs(LBRACKET)) {
@@ -118,11 +116,12 @@ std::unique_ptr<Declaration> Parser::parseGroupedDeclarationNode(std::unique_ptr
 
         node->multipleValues.push_back(std::move(newNode));
     }
+
     return std::move(node);
 }
 
 std::unique_ptr<Declaration> Parser::parseExplicitDeclarationNode(std::unique_ptr<Declaration> &node) {
-    node->name = std::make_unique<Identifier>(currentToken, currentToken.Literal);
+    node->name = std::make_unique<Identifier>(currentToken.Literal);
 
     if(nextTokenIs(LBRACKET)) {
         if (node->isConstant) throw std::runtime_error("Constant array!");
@@ -200,10 +199,8 @@ std::unique_ptr<TypeNode> Parser::parseType() {
     }
 }
 
-
-// PARSING FUNCTION
 std::unique_ptr<Function> Parser::parseFunctionDeclaration() {
-    auto func = std::make_unique<Function>(currentToken);
+    auto func = std::make_unique<Function>();
 
     if(!nextTokenIs(IDENTIFIER)) {
         throw std::runtime_error("Unhandled function declaration: function name is missing");
@@ -236,7 +233,7 @@ std::unique_ptr<Function> Parser::parseFunctionDeclaration() {
 }
 
 std::unique_ptr<CodeBlock> Parser::parseBlockNode() {
-    auto block = std::make_unique<CodeBlock>(currentToken);
+    auto block = std::make_unique<CodeBlock>();
     getNextToken();
 
 
@@ -261,7 +258,7 @@ std::vector<std::unique_ptr<Identifier>> Parser::parseFunctionParameters() {
 
     getNextToken();
 
-    auto param = std::make_unique<Identifier>(currentToken, currentToken.Literal);
+    auto param = std::make_unique<Identifier>(currentToken.Literal);
     if (startsWithType(nextToken.Type) || nextTokenIs(LBRACKET)) {
         getNextToken();
         if (currentTokenIs(LBRACKET)) {
@@ -277,7 +274,7 @@ std::vector<std::unique_ptr<Identifier>> Parser::parseFunctionParameters() {
 
     while (nextTokenIs(COMMA)) {
         getNextToken(2);
-        auto newParam = std::make_unique<Identifier>(currentToken, currentToken.Literal);
+        auto newParam = std::make_unique<Identifier>(currentToken.Literal);
         if (startsWithType(nextToken.Type) || nextTokenIs(LBRACKET)) {
             getNextToken();
             std::unique_ptr<TypeNode> type;
@@ -310,13 +307,13 @@ std::vector<std::unique_ptr<Identifier>> Parser::parseFunctionParameters() {
 }
 
 std::unique_ptr<FunctionCall> Parser::parseFunctionCall(std::unique_ptr<Node> funcName) {
-    auto funcCall = std::make_unique<FunctionCall>(currentToken, funcName->string());
+    auto funcCall = std::make_unique<FunctionCall>(funcName->string());
     funcCall->args = std::move(parseNodeList(RPAREN));
     return funcCall;
 }
 
 std::unique_ptr<ReturnNode> Parser::parseReturnNode() {
-    auto node = std::make_unique<ReturnNode>(currentToken);
+    auto node = std::make_unique<ReturnNode>();
 
     if (!nextTokenIs(RBRACE)) {
         getNextToken();
@@ -326,11 +323,8 @@ std::unique_ptr<ReturnNode> Parser::parseReturnNode() {
     return node;
 }
 
-
-//
-
 std::unique_ptr<Node> Parser::parseRValueNode() {
-    auto node = std::make_unique<RValue>(currentToken);
+    auto node = std::make_unique<RValue>();
 
     node->value = parseRValue(LOWEST);
 
@@ -403,7 +397,7 @@ std::unique_ptr<Program> Parser::parseProgram() {
 }
 
 std::unique_ptr<Integer> Parser::parseIntegerLiteral() {
-    auto intLit = std::make_unique<Integer>(currentToken);
+    auto intLit = std::make_unique<Integer>();
     intLit->value = std::stoi(currentToken.Literal);
     return intLit;
 }
@@ -411,6 +405,8 @@ std::unique_ptr<Integer> Parser::parseIntegerLiteral() {
 std::unique_ptr<Node> Parser::parseNode() {
     if (currentToken.Type == IDENTIFIER && nextToken.Type == ASSIGN) {
         return parseAssignmentNode();
+    } else if (currentToken.Type == PRINT) {
+        return parsePrintNode();
     } else if (currentToken.Type == CONST) {
         return parseDeclarationNode(CONST_DECL);
     } else if (currentToken.Type == VAR) {
@@ -435,14 +431,14 @@ void Parser::registerInfix(const TokenType& tokenType, infixParseFn fn) {
 }
 
 std::unique_ptr<Prefix> Parser::parsePrefixNode() {
-    auto node = std::make_unique<Prefix>(currentToken, currentToken.Literal);
+    auto node = std::make_unique<Prefix>(currentToken.Literal);
     getNextToken();
     node->right = parseRValue(PREFIX);
     return node;
 }
 
 std::unique_ptr<Infix> Parser::parseInfixNode(std::unique_ptr<Node> left) {
-    auto node = std::make_unique<Infix>(currentToken, currentToken.Literal, std::move(left));
+    auto node = std::make_unique<Infix>(currentToken.Literal, std::move(left));
     auto precedence = currentPrecedence();
     getNextToken();
     node->right = parseRValue(precedence);
@@ -460,11 +456,16 @@ std::unique_ptr<Node> Parser::parseGroupedNodes() {
 }
 
 std::unique_ptr<IfElseNode> Parser::parseIfNode() {
-    auto ifNode = std::make_unique<IfElseNode>(currentToken);
-    if (!checkNextTokenAndAdvance(LPAREN)) {return nullptr;}
-    getNextToken();
-    ifNode->condition = std::move(parseRValue(LOWEST));
-    getNextToken(2);
+    auto ifNode = std::make_unique<IfElseNode>();
+    if (checkNextTokenAndAdvance(LPAREN)) {
+        getNextToken();
+        ifNode->condition = std::move(parseRValue(LOWEST));
+        getNextToken(2);
+    } else {
+        getNextToken();
+        ifNode->condition = std::move(parseRValue(LOWEST));
+        getNextToken();
+    }
     ifNode->consequence = std::move(parseBlockNode());
 
     if (nextTokenIs(ELSE)) {
@@ -503,7 +504,7 @@ std::vector<std::unique_ptr<Node>> Parser::parseNodeList(TokenType end) {
 }
 
 std::unique_ptr<Array> Parser::parseArray() {
-    auto array = std::make_unique<Array>(currentToken);
+    auto array = std::make_unique<Array>();
     if (nextToken.Type == VARIADIC || nextToken.Type == INT) {
         getNextToken(3);
     } else if (nextToken.Type == RBRACKET) {
@@ -523,7 +524,7 @@ std::unique_ptr<Array> Parser::parseArray() {
 }
 
 std::unique_ptr<Node> Parser::parseIndex(std::unique_ptr<Node> left) {
-    auto indexNode = std::make_unique<Index>(currentToken, std::move(left));
+    auto indexNode = std::make_unique<Index>(std::move(left));
     getNextToken();
     indexNode->index = std::move(parseRValue(LOWEST));
 
@@ -565,7 +566,7 @@ std::unique_ptr<Node> Parser::parseIdentifier() {
     if (nextToken.Type == DECLARE) {
         return parseDeclarationNode(SHORT_DECL);
     }
-    return std::make_unique<Identifier>(currentToken, currentToken.Literal);
+    return std::make_unique<Identifier>(currentToken.Literal);
 }
 
 std::unique_ptr<Node> Parser::parseAssignmentNode() {
@@ -574,4 +575,20 @@ std::unique_ptr<Node> Parser::parseAssignmentNode() {
     getNextToken(2);
     assignment->value = parseRValue(LOWEST);
     return assignment;
+}
+
+std::unique_ptr<Node> Parser::parsePrintNode() {
+    auto printNode = std::make_unique<PrintNode>();
+
+    if (checkNextTokenAndAdvance(LPAREN)) {
+        if (nextTokenIs(RPAREN)) {
+            printNode->values.push_back(nullptr);
+        } else {
+            printNode->values = parseNodeList(RPAREN);
+        }
+    } else {
+        throw std::runtime_error("fmt.Println argument is missing");
+    }
+
+    return printNode;
 }

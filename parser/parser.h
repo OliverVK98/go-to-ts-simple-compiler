@@ -33,8 +33,7 @@ class Parser {
 public:
     explicit Parser(Lexer* l);
     std::unique_ptr<Program> parseProgram();
-
-private:
+public:
     Lexer* lexer;
     std::vector<std::string> errors{};
     Token currentToken;
@@ -67,8 +66,8 @@ private:
     std::unique_ptr<Node> parseRValueNode();
     std::unique_ptr<Node> parseIdentifier();
     std::unique_ptr<Integer> parseIntegerLiteral();
-    inline std::unique_ptr<String> parseStringLiteral() { return std::make_unique<String>(currentToken, currentToken.Literal); }
-    inline std::unique_ptr<Boolean> parseBoolean() { return std::make_unique<Boolean>(currentToken, currentTokenIs(TRUE)); }
+    inline std::unique_ptr<String> parseStringLiteral() { return std::make_unique<String>(currentToken.Literal); }
+    inline std::unique_ptr<Boolean> parseBoolean() { return std::make_unique<Boolean>(currentTokenIs(TRUE)); }
     std::unique_ptr<Prefix> parsePrefixNode();
     std::unique_ptr<Infix> parseInfixNode(std::unique_ptr<Node> left);
     std::unique_ptr<CodeBlock> parseBlockNode();
@@ -81,6 +80,7 @@ private:
     std::unique_ptr<Array> parseArray();
     std::unique_ptr<Node> parseIndex(std::unique_ptr<Node> left);
     std::unique_ptr<Node> parseAssignmentNode();
+    std::unique_ptr<Node> parsePrintNode();
 
     // Parsing variables and their types
     std::unique_ptr<Node> parseDeclarationNode(DeclarationType declType);

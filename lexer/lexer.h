@@ -12,17 +12,17 @@
 
 class Lexer {
 public:
+    explicit Lexer(std::string input) : input(std::move(input)) {
+        readChar();
+    }
+    Token nextToken();
+private:
     std::string input;
     int position{};
     int nextPosition{};
     char ch{};
 
-    explicit Lexer(std::string input) : input(std::move(input)) {
-        readChar();
-    }
-
     void readChar();
-    Token nextToken();
     std::string readIdentifierOrType();
     std::string readNumber();
     void skipWhitespace();
@@ -32,7 +32,7 @@ public:
 };
 
 Token newToken(const TokenType& tokenType, char ch);
-inline bool isLetter(char ch) { return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'; }
+inline bool isLetter(char ch) { return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch == '.'; }
 inline bool isDigit(char ch) { return '0' <= ch && ch <= '9'; }
 
 #endif //GO_TO_TS_SIMPLE_COMPILER_LEXER_H

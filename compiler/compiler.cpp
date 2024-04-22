@@ -3,8 +3,6 @@
 //
 
 #include "./compiler.h"
-#include "../logger/logger.h"
-
 
 std::unordered_map<TokenType , std::string> tokenTypeToStringTypeMap = {
         {INT_TYPE, "number"},
@@ -21,6 +19,7 @@ std::string getTsType(const TokenType& type, const std::unique_ptr<TypeNode>& no
         if (auto arrType = dynamic_cast<ArrayType*>(nodeType.get())) {
             return tokenTypeToStringTypeMap[arrType->getSubType()] + "[]";
         }
+        throw std::runtime_error("Failed to convert to TypeScript type.");
     } else {
         return tokenTypeToStringTypeMap[type];
     }
@@ -68,6 +67,8 @@ void Compiler::compile(const std::unique_ptr<Node>& node) {
         for (const auto& statement : program->nodes) {
             compile(statement);
         }
+    } else if (auto printNode = dynamic_cast<PrintNode*>(node.get())) {
+        emitPrintNode(printNode);
     } else if (auto rvalue = dynamic_cast<RValue*>(node.get())) {
         if (auto declStmt = dynamic_cast<Declaration*>(rvalue->value.get())) {
             emitDeclaration(declStmt, false);
@@ -260,6 +261,21 @@ void Compiler::emitIfElse(IfElseNode *node) {
         outputStream << getIndent() << "}";
     }
     outputStream << "\n";
+}
+
+void Compiler::emitPrintNode(PrintNode *node) {
+    if (!node) return;
+    outputStream << getIndent() << "console.log(";
+
+    for (int i=0; i<node->values.size(); i++) {
+        if (i < node->values.size()-1) {
+            outputStream << node->values[i]->string() << ", ";
+        } else {
+            outputStream << node->values[i]->string();
+        }
+    }
+
+    outputStream << ");\n";
 }
 
 

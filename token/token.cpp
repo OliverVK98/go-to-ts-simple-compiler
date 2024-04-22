@@ -12,7 +12,8 @@ std::unordered_map<std::string, TokenType> keywords = {
         {"if",     IF},
         {"else",   ELSE},
         {"return", RETURN},
-        {"var", VAR}
+        {"var", VAR},
+        {"fmt.Println", PRINT}
 };
 
 std::unordered_map<std::string, TokenType> typeKeywords = {

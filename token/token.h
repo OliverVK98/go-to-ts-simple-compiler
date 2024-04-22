@@ -44,6 +44,7 @@ const TokenType ELSE = "ELSE";
 const TokenType RETURN = "RETURN";
 const TokenType INT = "INT";
 const TokenType STRING = "STRING";
+const TokenType PRINT = "PRINT";
 
 // Other tokens
 const TokenType EQ = "==";

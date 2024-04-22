@@ -1,119 +1,33 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
 #include "lexer/lexer.h"
-#include "token/token.h"
 #include "parser/parser.h"
 #include "compiler/compiler.h"
 
-// PREFIX + IFELSE NODES.
-std::string testCase = R"(
-func main() {
-    var a int = 10
-    var str string = "Hello"
-    const flag bool = true
-    d := 42
+std::string preprocessInputFile(const std::string& filename) {
+    std::ifstream file(filename);
+    std::string line;
+    std::stringstream ss;
 
-    var (
-        g string = "Grouped"
-        h bool   = true
-        b int    = 100
-    )
-
-    j := []int{1, 2, 3, 4, 5}
-
-    func add(x, y int) int {
-        return x + y
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open the file: " + filename);
     }
 
-    func checkPositive(num int) bool {
-        return num > 0
+    while (getline(file, line)) {
+        if (line.find("package") == 0 || line.find("import") == 0 || line.find("//") == 0) {
+            continue;
+        }
+        ss << line << '\n';
     }
 
-    result := add(a, b)
-
-    if (flag!=true) {
-        result = 10
-    } else {
-        result = 20
-    }
-
-    if (checkPositive(result)) {
-        result = 10
-    } else {
-        result = 20
-    }
-}
-)";
-
-std::string functionAndCallsTestCase = R"(
-const a int = 10
-func test(a, b string, c []int) string {
-	var newString = 1 + 1 + 2
-	var newString = 1 + 1
-	var newString = a
-	var newString = a + "test"
-	var newString = a + "test" + "test"
-
-    func test(a, b int, c []int) string {
-	    var newString = 1 + 1 + 2
-	    var newString = 1 + 1
-	    var newString = a
-	    var newString = a + "test"
-	    var newString = a + "test" + "test"
-    }
-
-    return
-}
-var a = test(a, b, "string", 1, []int{1,2,3}) + 3
-)";
-
-std::string variableDeclTestCase = R"(
-a := 5
-nums := []int{1, 2, 3}
-flag := true
-
-const (
-    Name string = "Go"
-    Version = "1.16"
-    ReleasedYear int = 2009
-    TrueFlag bool = true
-    FalseFlag = false
-)
-
-const d = 5
-const b bool = false
-
-var (
-    explicitInt int = 10
-    implicitInt = 20
-    noValueInt int
-
-    explicitBool bool = true
-    explicitString string = "explicit"
-
-    explicitArray [...]int = [...]int{1, 2, 3, 4, 5}
-    implicitArray = [5]int{6, 7, 8, 9, 10}
-    noValueArray [5]int
-)
-
-var intVar int = 5
-var boolVar = false
-var stringVar string = "hello"
-var uninitString string
-
-var boolArrayVar [2]bool = [2]bool{true, false}
-var arr = [5]int{1, 2, 3, 4, 5}
-var uninitIntArray [3]int
-)";
-
-void lexTestCase() {
-    Lexer newLexer(testCase);
-    for (auto currTok = newLexer.nextToken(); currTok.Type != END_OF_FILE; currTok = newLexer.nextToken()) {
-        std::cout << currTok << std::endl;
-    }
+    file.close();
+    return ss.str();
 }
 
-void compileTestCase() {
-    Lexer newLexer(testCase);
+void compileInputFile(const std::string& input) {
+    Lexer newLexer(input);
     Parser newParser{&newLexer};
     auto output = newParser.parseProgram();
     Compiler compiler("./output.ts");
@@ -121,13 +35,12 @@ void compileTestCase() {
 }
 
 int main() {
+    std::string filename = "input.go";
     try {
-//    lexTestCase();
-        compileTestCase();
+        std::string processedInput = preprocessInputFile(filename);
+        compileInputFile(processedInput);
     } catch (std::runtime_error& e) {
-        std::cerr << e.what();
+        std::cerr << "Error: " << e.what() << std::endl;
     }
-
     return 0;
 }
-

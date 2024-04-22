@@ -15,13 +15,7 @@ std::string getTsType(const TokenType& type, const std::unique_ptr<TypeNode>& no
 std::string getTsSubType(const std::string& type);
 
 class Compiler {
-private:
-    int indentLevel = -1;
 public:
-    std::unique_ptr<VarTable> varTable;
-    std::ofstream outputStream;
-    std::vector<std::unique_ptr<VarTable>> scopeStack{};
-
     Compiler(const std::string& outputFile) : outputStream(outputFile, std::ios::app) {
         if (!outputStream.is_open()) {
             throw std::runtime_error("Failed to open output file: " + outputFile);
@@ -33,6 +27,12 @@ public:
             outputStream.close();
         }
     }
+    void compile(const std::unique_ptr<Node>& node);
+private:
+    int indentLevel = -1;
+    std::unique_ptr<VarTable> varTable;
+    std::ofstream outputStream;
+    std::vector<std::unique_ptr<VarTable>> scopeStack{};
 
     // Scope management
     void enterScope();
@@ -41,8 +41,6 @@ public:
 
     std::string getIndent();
 
-    void compile(const std::unique_ptr<Node>& node);
-
     void emitDeclaration(Declaration* node, bool isConstant);
     void emitFunc(Function* node);
     void emitReturn(ReturnNode* node);
@@ -50,6 +48,7 @@ public:
     std::pair<std::string, std::string> emitInfix(Infix *node, Declaration *decl, bool isRootCall);
     void emitIfElse(IfElseNode *node);
     inline void emitAssignment(Assignment *node) {if (!node) return; outputStream << getIndent() << node->string() << ";\n";}
+    void emitPrintNode(PrintNode *node);
 };
 
 #endif //GO_TO_TS_SIMPLE_COMPILER_COMPILER_H

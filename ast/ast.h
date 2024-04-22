@@ -16,8 +16,6 @@ std::string boolToString(bool boolV);
 
 struct TypeNode {
     virtual ~TypeNode() = default;
-
-
     virtual TokenType getType() = 0;
     virtual TokenType getSubType() = 0;
     virtual std::unique_ptr<TypeNode> clone() const = 0;
@@ -49,8 +47,8 @@ struct BoolType : public TypeNode {
 
 struct ArrayType : public TypeNode {
     std::unique_ptr<TypeNode> subType;
-    ArrayType(std::unique_ptr<TypeNode> type) : subType(std::move(type)) {};
-    ArrayType() {};
+    explicit ArrayType(std::unique_ptr<TypeNode> type) : subType(std::move(type)) {};
+    ArrayType() = default;
     TokenType getType() override  {return ARRAY_TYPE;}
     TokenType getSubType() override  {return subType->getType();}
     std::unique_ptr<TypeNode> clone() const override {
@@ -76,87 +74,86 @@ struct Node {
     virtual std::string string() = 0;
 };
 
-struct ValueNode : public Node {
-    std::unique_ptr<TypeNode> type;
-
-    ValueNode(std::unique_ptr<TypeNode> initType) : type(std::move(initType)) {}
-
-    virtual ~ValueNode() = default;
-};
-
 struct Program : public Node {
     std::vector<std::unique_ptr<Node>> nodes;
     Program() = default;
     ~Program() override = default;
     Program(const Program&) = delete;
     Program& operator=(const Program&) = delete;
-    Program(Program&&) noexcept = default;
-    Program& operator=(Program&&) noexcept = default;
+    Program(Program&&) noexcept = delete;
+    Program& operator=(Program&&) noexcept = delete;
+
+    std::string string() override;
+    std::string testString() override;
+};
+
+struct ValueNode : public Node {
+    std::unique_ptr<TypeNode> type;
+
+    explicit ValueNode(std::unique_ptr<TypeNode> initType) : type(std::move(initType)) {}
+
+    ~ValueNode() override = default;
+};
+
+struct Integer : public ValueNode {
+    int value{};
+
+    Integer() : ValueNode(std::make_unique<IntegerType>()) {};
+
+    inline std::string string() override {return std::to_string(value);}
+    inline std::string testString() override { return "Integer(" + string() + ")"; }
+};
+
+struct String : public ValueNode {
+    std::string value;
+
+    explicit String(std::string val) : ValueNode(std::make_unique<StringType>()), value(std::move(val)) {}
+    String() : ValueNode(std::make_unique<StringType>()) {};
+
+    inline std::string string() override {return "\"" + value + "\"";}
+    inline std::string testString() override { return "String(" + string() + ")"; }
+};
+
+struct Boolean : public ValueNode {
+    bool value{};
+
+    explicit Boolean(bool val) : ValueNode(std::make_unique<BoolType>()), value(val) {}
+    Boolean() : ValueNode(std::make_unique<BoolType>()) {};
+
+    inline std::string string() override {return boolToString(value);}
+    inline std::string testString() override { return "Boolean(" + string() + ")"; }
+};
+
+struct Array : public ValueNode {
+    std::vector<std::unique_ptr<Node>> elements;
+
+    explicit Array(std::unique_ptr<TypeNode> type) : ValueNode(std::move(type)) {};
+    Array() : ValueNode(std::make_unique<ArrayType>()) {};
 
     std::string string() override;
     std::string testString() override;
 };
 
 struct Identifier : public Node {
-    Token token;
-    std::string value;
-    std::unique_ptr<TypeNode> type;
     std::string name;
-    Identifier(Token token, std::string value) : token(token), name(token.Literal), value(value) {}
-
-    inline std::string string() override {return value;}
-    inline std::string testString() override { return "Identifier(" + token.Literal + ")"; }
-};
-
-struct Integer : public ValueNode {
-    Token token;
-    int value;
     std::unique_ptr<TypeNode> type;
-    Integer(Token token, int val) : ValueNode(std::make_unique<IntegerType>()), token(token), value(val) {}
-    Integer(Token token) : ValueNode(std::make_unique<IntegerType>()), token(token) {}
-    Integer() : ValueNode(std::make_unique<IntegerType>()) {};
+    explicit Identifier(std::string name) : name(std::move(name)) {}
 
-    inline std::string string() override {return std::to_string(value);}
-    inline std::string testString() override { return "Integer(" + token.Literal + ")"; }
-};
-
-struct String : public ValueNode {
-    Token token;
-    std::string value;
-    std::unique_ptr<TypeNode> type = std::make_unique<StringType>();
-    String(Token token, std::string val) : ValueNode(std::make_unique<StringType>()), token(token), value(val) {}
-    String(Token token) : ValueNode(std::make_unique<StringType>()), token(token) {}
-    String() : ValueNode(std::make_unique<StringType>()) {};
-
-    inline std::string string() override {return "\"" + value + "\"";}
-    inline std::string testString() override { return "String(" + token.Literal + ")"; }
-};
-
-struct Boolean : public ValueNode {
-    Token token;
-    bool value;
-    std::unique_ptr<TypeNode> type = std::make_unique<BoolType>();
-    Boolean(Token token, bool val) : ValueNode(std::make_unique<BoolType>()), token(token), value(val) {}
-    Boolean(Token token) : ValueNode(std::make_unique<BoolType>()), token(token) {}
-    Boolean() : ValueNode(std::make_unique<BoolType>()) {};
-
-    inline std::string string() override {return boolToString(value);}
-    inline std::string testString() override { return "Boolean(" + token.Literal + ")"; }
+    inline std::string string() override {return name;}
+    inline std::string testString() override { return "Identifier(" + name + ")"; }
 };
 
 struct Declaration : public Node {
-    Token token;
     std::unique_ptr<Node> name;
     std::unique_ptr<Node> value;
     std::vector<std::unique_ptr<Declaration>> multipleValues;
     std::unique_ptr<TypeNode> type;
     bool isConstant = false;
 
-    Declaration(Token &token) : token(token) {};
-    Declaration() {};
+    Declaration() = default;
 
-    inline std::string string()  override {return token.Literal;}
-    std::string testString() override {return "Declaration: " + token.Literal;}
+    inline std::string string()  override {return name->string();}
+    std::string testString() override {return "Declaration: " + name->string();}
 };
 
 struct Assignment : public Node {
@@ -164,116 +161,110 @@ struct Assignment : public Node {
     std::unique_ptr<Node> value;
 
     Assignment() = default;
+
     inline std::string string()  override {return variable->string() + " = " + value->string();}
     std::string testString() override {return "Assignment(" + variable->string() + " = " + value->string() + ")";}
 };
 
 struct ReturnNode : public Node {
-    Token token;
     std::unique_ptr<Node> value;
 
-    ReturnNode(Token &token) : token(token) {};
+    ReturnNode() = default;
 
-    inline std::string string() override {return token.Literal;}
+    inline std::string string() override {return value->string();}
     std::string testString() override;
 };
 
 struct RValue : public Node {
-    Token token;
     std::unique_ptr<Node> value;
 
-    RValue(Token &token) : token(token) {};
+    RValue() = default;
 
-    inline std::string string() override {return token.Literal;}
+    inline std::string string() override {return value->string();}
     std::string testString() override;
 };
 
 struct CodeBlock : public Node {
-    Token token;
     std::vector<std::unique_ptr<Node>> nodes;
-    CodeBlock(Token& token) : token(token) {};
 
-    inline std::string string() override {return token.Literal;}
+    CodeBlock() = default;
+
+    inline std::string string() override {return "CODE_BLOCK";}
     std::string testString() override;
 };
 
 struct IfElseNode : public Node {
-    Token token;
     std::unique_ptr<Node> condition;
     std::unique_ptr<CodeBlock> consequence;
     std::unique_ptr<CodeBlock> alternative;
-    IfElseNode(Token& token) : token(token) {};
 
-    inline std::string string() override {return token.Literal;}
+    IfElseNode() = default;
+
+    inline std::string string() override {return "IF_STATEMENT";}
     std::string testString() override;
 };
 
 struct Prefix : public Node {
-    Token token;
     std::string Operator;
     std::unique_ptr<Node> right;
 
-    Prefix(Token token, std::string Operator) : token(token), Operator(Operator) {};
+    explicit Prefix(std::string Operator) : Operator(std::move(Operator)) {};
 
     inline std::string string() override;
     std::string testString() override;
 };
 
 struct Infix : public Node {
-    Token token;
     std::string Operator;
     std::unique_ptr<Node> right;
     std::unique_ptr<Node> left;
 
-    Infix(Token token, std::string Operator, std::unique_ptr<Node> left) :
-        token(token), Operator(Operator), left(std::move(left)) {};
+    Infix(std::string Operator, std::unique_ptr<Node> left) : Operator(std::move(Operator)), left(std::move(left)) {};
 
     std::string string() override;
     std::string testString() override;
 };
 
 struct Function : public Node {
-    Token token;
     std::vector<std::unique_ptr<Identifier>> parameters;
     std::unique_ptr<CodeBlock> body;
     std::string funcName;
     std::unique_ptr<TypeNode> type;
-    Function(Token& token) : token(token) {};
 
-    inline std::string string() override {return token.Literal;}
+    Function() = default;
+
+    inline std::string string() override {return "FUNCTION";}
     std::string testString() override;
 };
 
 struct FunctionCall : public Node {
-    Token token;
     std::string funcName;
     std::vector<std::unique_ptr<Node>> args;
-    FunctionCall(Token& token, std::string funcName) : token(token), funcName(std::move(funcName)) {};
 
-    std::string string() override;
-    std::string testString() override;
-};
-
-struct Array : public Node {
-    Token token;
-    std::vector<std::unique_ptr<Node>> elements;
-    std::unique_ptr<TypeNode> type;
-    Array(Token& token) : token(token) {};
-    Array(Token& token, std::unique_ptr<TypeNode> type) : token(token), type(std::move(type)) {};
-    Array() {};
+    explicit FunctionCall(std::string funcName) : funcName(std::move(funcName)) {};
 
     std::string string() override;
     std::string testString() override;
 };
 
 struct Index : public Node {
-    Token token;
     std::unique_ptr<Node> left;
     std::unique_ptr<Node> index;
-    Index(Token& token, std::unique_ptr<Node> left) : token(token), left(std::move(left)) {};
+
+    explicit Index(std::unique_ptr<Node> left) : left(std::move(left)) {};
 
     inline std::string string() override {return left->string() + "[" + index->string() + "]";}
     std::string testString() override;
+};
+
+struct PrintNode : public Node {
+    std::vector<std::unique_ptr<Node>> values{};
+
+    PrintNode() = default;
+
+    inline std::string string() override {return "console.log()";}
+    inline std::string testString() {return "OUTPUTNODE ()";};
+
 };
 
 #endif //GO_TO_TS_SIMPLE_COMPILER_AST_H
