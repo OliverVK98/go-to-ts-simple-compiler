@@ -8,7 +8,6 @@
 #include <fstream>
 #include "../ast/ast.h"
 #include "varTable.h"
-#include "../logger/logger.h"
 
 extern std::unordered_map<TokenType , std::string> tokenTypeToStringTypeMap;
 std::string getTsType(const TokenType& type, const std::unique_ptr<TypeNode>& nodeType);

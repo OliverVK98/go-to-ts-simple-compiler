@@ -5,7 +5,6 @@
 #include "lexer.h"
 
 #include <utility>
-#include "../logger/logger.h"
 
 void Lexer::readChar() {
     if (nextPosition >= input.length()) {

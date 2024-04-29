@@ -3,7 +3,6 @@
 //
 
 #include "ast.h"
-#include "../logger/logger.h"
 
 std::string Program::testString() {
     std::stringstream ss;
